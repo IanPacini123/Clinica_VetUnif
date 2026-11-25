@@ -1,0 +1,25 @@
+{
+  "name": "clinica_vetunif",
+  "version": "1.0.0",
+  "description": "Plataforma web para uma clínica veterinária pequena: cadastro de Tutores e Animais, recepção dos animais que chegam e registro dos atendimentos feitos pelos veterinários.",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/IanPacini123/Clinica_VetUnif.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/IanPacini123/Clinica_VetUnif/issues"
+  },
+  "homepage": "https://github.com/IanPacini123/Clinica_VetUnif#readme",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "private": true
+}
