@@ -1,11 +1,15 @@
-import Fastify from 'fastify'
-import { prisma } from './db.js'
+import Fastify from 'fastify';
+import { prisma } from './db.js';
 import { ErroHttp } from './models/erros.js';
 import type { Saude } from '@clinica/shared';
 
 import fastifyStatic from '@fastify/static';
 import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+
+import fastifyJwt from '@fastify/jwt';
+import { rotasAuth } from './rotas/auth.js';
+import './auth/tipos.js';
 
 const ENV_PORT = process.env.PORT
 
@@ -16,9 +20,14 @@ const fastify = Fastify({
 const WEB_DIST = fileURLToPath(new URL('../../web/dist', import.meta.url))
 const servirWeb = existsSync(WEB_DIST)
 
-if (servirWeb) {
-    await fastify.register(fastifyStatic, { root: WEB_DIST })
+// ----
+
+const JWT_SECRET = process.env.JWT_SECRET
+if (!JWT_SECRET) {
+    throw new Error('JWT_SECRET não fornecido. Configure no ambiente.')
 }
+
+// -------------------------------------------------------------------------------
 
 fastify.get('/api/health', async (request, reply): Promise<Saude> => {
     try {
@@ -60,5 +69,15 @@ const start = async () => {
     process.exit(1)
   }
 }
+
+// -------------------------------------------------------------------------------
+
+await fastify.register(fastifyJwt, { secret: JWT_SECRET, sign: { expiresIn: '8h' } })
+await fastify.register(rotasAuth)
+
+if (servirWeb) {
+    await fastify.register(fastifyStatic, { root: WEB_DIST })
+}
+
 
 start()
