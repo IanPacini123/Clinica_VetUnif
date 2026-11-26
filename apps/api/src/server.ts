@@ -38,7 +38,7 @@ fastify.setErrorHandler((error, request, reply) => {
         return reply.code(error.statusCode).send({ mensagem: error.message })
     }
 
-    if ( error instanceof Error && 'statusCode' in error && typeof error.statusCode == 'number' && error.statusCode < 500 ) {
+    if ( error instanceof Error && 'statusCode' in error && typeof error.statusCode === 'number' && error.statusCode < 500 ) {
         return reply.code(error.statusCode).send({ mensagem: 'requisição inválida' })
     }
 
