@@ -46,7 +46,7 @@ fastify.setErrorHandler((error, request, reply) => {
 })
 
 fastify.setNotFoundHandler((request, reply) => {
-    if (servirWeb && request.method == 'GET' && !request.url.startsWith('/api')) {
+    if (servirWeb && request.method === 'GET' && !request.url.startsWith('/api')) {
         return reply.sendFile('index.html')
     }
     return reply.code(404).send({ mensagem: 'Rota não encontrada.' })
