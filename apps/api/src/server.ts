@@ -1,6 +1,7 @@
 import Fastify from 'fastify'
 import { prisma } from './db.js'
 import { ErroHttp } from './models/erros.js';
+import type { Saude } from '@clinica/shared';
 
 const ENV_PORT = process.env.PORT
 
@@ -8,8 +9,7 @@ const fastify = Fastify({
     logger: true
 })
 
-fastify.get('/api/health', async (request, reply) => {
-    
+fastify.get('/api/health', async (request, reply): Promise<Saude> => {
     try {
         await prisma.$queryRaw`SELECT 1`;
 
@@ -19,6 +19,7 @@ fastify.get('/api/health', async (request, reply) => {
         throw new ErroHttp(503, "Falha na conexão com o banco de dados.");
     }
 })
+
 fastify.setErrorHandler((error, request, reply) => {
     request.log.error(error);
 
