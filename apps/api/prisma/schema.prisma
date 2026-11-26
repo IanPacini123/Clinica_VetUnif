@@ -23,3 +23,23 @@ model Animal {
 
     @@map("animal")
 }
+
+enum Perfil {
+    ADMIN
+    ATENDENTE
+    VETERINARIO
+
+    @@map("perfil")
+}
+
+model Usuario {
+    id  Int @id @default(autoincrement())
+    nome    String
+    nomeUsuario String @unique @map("nome_usuario")
+    senhaHash   String @map("senha_hash")
+    perfil  Perfil
+    crmv    String?
+    ativo   Boolean @default(true)
+
+    @@map("usuario")
+}
