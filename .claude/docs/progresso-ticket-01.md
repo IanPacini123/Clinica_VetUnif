@@ -1,7 +1,7 @@
 # Progresso da Implementação: Tickets 01 e 02
 
 ## Resumo
-Registro da implementação e da metodologia de trabalho. Tickets em `.scratch/clinica-veterinaria/issues/`. **Ticket 01** (esqueleto local) foi concluído em 2026-11-26. **Ticket 02** (esqueleto publicado) foi publicado em 2026-11-26 em `https://clinica-vetunif.onrender.com/`; falta o usuário marcar o status no ticket. Próximo: ticket 03 (login e sessão). As regras de negócio ficam em `docs/especificacao.md`; o deploy, no ADR 0004.
+Registro da implementação e da metodologia de trabalho. Tickets em `.scratch/clinica-veterinaria/issues/`. **Ticket 01** (esqueleto local) foi concluído em 2026-11-26. **Ticket 02** (esqueleto publicado) foi concluído em 2026-11-26 em `https://clinica-vetunif.onrender.com/`, com deploy automático por push confirmado. Próximo: ticket 03 (login e sessão). As regras de negócio ficam em `docs/especificacao.md`; o deploy, no ADR 0004.
 
 ## Metodologia (modo professor, com ritmo ajustado)
 - **O usuário escreve todo o código da aplicação.** Claude guia, revisa e explica. Claude só executa limpeza, verificação (build, curl, inspecionar arquivos ou containers) e documentação quando o usuário pede ou quando é preciso para diagnosticar.
@@ -78,8 +78,6 @@ Registro da implementação e da metodologia de trabalho. Tickets em `.scratch/c
 - **npm em vez de pnpm**; skills de IA geradas pelo `prisma init` foram apagadas.
 
 ## Pendências / Em Aberto
-- **Ticket 02**: o usuário vai marcar os critérios e o status no arquivo do ticket e commitar. Confirmar que um push disparou um deploy automático no painel do Render (critério "push na main dispara deploy").
-- **`server.ts` linha 41**: ainda tem `typeof error.statusCode == 'number'` (o `===` foi corrigido só no `setNotFoundHandler`).
 - **Ticket 03 (login e sessão)**: o código passa a ler o `JWT_SECRET` (falhar cedo se ausente, como a `DATABASE_URL`); também precisa ser adicionado ao `apps/api/.env` local e ao compose.
 - **PDF**: avisar que o Render Free hiberna (~50 s na primeira visita) e registrar a avaliação da vulnerabilidade do `effect`, que agora está nas dependências de produção.
 - Opcional: ADR 0005 da PK `Int`; atualizar a pendência "versão do Node" em `docs/especificacao.md` (Node 24 LTS); reduzir a imagem (hoje o `npm ci --omit=dev` instala também as dependências de runtime do web, como o `vue`, que não são usadas).
@@ -116,4 +114,4 @@ Registro da implementação e da metodologia de trabalho. Tickets em `.scratch/c
 - **O error handler do Fastify recebe `unknown`**: estreite antes de ler `statusCode`.
 
 ## Ultima Atualizacao
-2026-11-26 — Ticket 02 publicado (Fastify static + fallback, Dockerfile multi-stage, Neon Ohio, Render com health check e auto-deploy); armadilhas de npm, região e import.
+2026-11-26 — Ticket 02 concluído; auto-deploy confirmado e `===` corrigido. Ticket 02 publicado (Fastify static + fallback, Dockerfile multi-stage, Neon Ohio, Render com health check e auto-deploy); armadilhas de npm, região e import.
