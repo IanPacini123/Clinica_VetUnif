@@ -1,80 +1,102 @@
 # Progresso do Ticket 01: Esqueleto local ponta a ponta
 
 ## Resumo
-Andamento da implementação do ticket 01 (`.scratch/clinica-veterinaria/issues/01-esqueleto-local-ponta-a-ponta.md`) e a metodologia de trabalho combinada. O monorepo, o Postgres no compose, a api Fastify com TypeScript e o Prisma 7 (com migration e client) estão prontos. Faltam a rota de saúde consultando o banco, o handler de erros, o `shared` com Zod, o `web` em Vue e o compose com 3 serviços. Regras de negócio e decisões de produto ficam em `docs/especificacao.md`.
+Registro da implementação do ticket 01 (`.scratch/clinica-veterinaria/issues/01-esqueleto-local-ponta-a-ponta.md`) e da metodologia de trabalho. **Ticket concluído em 2026-11-26.** Estão prontos o monorepo, o Postgres, a api (Fastify + TS + Prisma 7, com rota de saúde e handler de erros), o shared (Zod), o web (Vue + Vite + Tailwind) e o compose com os três serviços. Próximo: ticket 02 (deploy no Render + Neon). As regras de negócio ficam em `docs/especificacao.md`.
 
-## Metodologia (modo professor)
-- **Claude atua como professor, não como implementador**: o usuário escreve todo o código; Claude faz perguntas, dá dicas, aponta docs e revisa o que foi escrito.
-- **Um passo por vez**: perguntar antes de explicar; pedir previsão antes de rodar um comando ("o que você espera que apareça?") e comparar depois.
-- **Claude só executa ações de limpeza ou verificação** quando o usuário pede (apagar pastas, rodar build, inspecionar arquivos); nunca escreve código da aplicação.
-- **Analogias com Java/Hibernate/Spring** funcionam bem (usuário conhece ORM via Hibernate).
-- **Revisões apontam o problema e a pista, não a correção pronta**; código pronto só quando o usuário pede explicitamente (ex.: posição do `include` no tsconfig).
-- **Commit ao fim de cada unidade completa**; prefixo `feature:` (escolha do usuário, não sugerir `feat:`).
-- Por que: é trabalho de disciplina e o README declara que o código não foi escrito por IA.
+## Metodologia (modo professor, com ritmo ajustado)
+- **O usuário escreve todo o código da aplicação.** Claude guia, revisa e explica. Claude só executa limpeza ou verificação (apagar pastas, rodar build, inspecionar arquivos ou containers) quando o usuário pede ou quando é preciso para diagnosticar.
+- **Ritmo ajustado em 2026-11-26** (prazo apertado): passos diretos, com trechos prontos para o usuário adaptar e digitar, cada um com um "por quê" curto. Menos perguntas socráticas e menos idas e vindas.
+- **Ciclo de cada passo:** trecho com explicação → o usuário digita e roda → "confere?" → Claude revisa (inspeciona arquivos, roda build ou curl) → aponta a correção → commit.
+- **Revisões apontam a linha exata e a causa** e explicam a lição geral do erro (ex.: "o `catch` engole qualquer erro").
+- **Analogias com Java/Hibernate/Spring** funcionam bem.
+- **Commit ao fim de cada unidade completa**, sempre da raiz (`git add -A`) e conferindo o `package-lock.json`. Prefixo `feature:` (escolha do usuário; não sugerir `feat:`).
+- **Por quê:** é trabalho de disciplina, e o README declara que o código não foi escrito por IA.
 
 ## Fatos Críticos (verbatim, nunca parafrasear)
-- **Node:** `v24.17.0` (LTS 24; Docker deve usar `node:24-*`)
+- **Node:** `v24.17.0` (LTS 24; imagem Docker `node:24-slim`)
+- **Pacotes:** `@clinica/api` (apps/api) · `@clinica/web` (apps/web) · `@clinica/shared` (packages/shared)
 - **Versões api:** `fastify ^5.12.8` · `@prisma/client ^7.10.1` · `@prisma/adapter-pg ^7.10.1` · `prisma ^7.10.1` · `typescript ^7.0.2` · `tsx ^4.23.15` · `@types/node ^24.19.4` · `dotenv ^17.4.2`
-- **Nomes dos pacotes:** `@clinica/api` (apps/api) · `@clinica/shared` (packages/shared) · web ainda não criado
+- **Versões web:** `vue ^3.5.46` · `vite ^8.4.0` · `tailwindcss ^4.3.5` + `@tailwindcss/vite ^4.3.5` · `vue-tsc ^3.3.14` · `typescript ~6.0.3` (fixado pelo template) · `@types/node ^24.19.4`
+- **Versões shared:** `zod ^4.6.7` · `typescript ^7.0.2` (dev)
 - **Workspaces da raiz:** `["apps/*", "packages/*"]` · raiz com `"private": true`
-- **Compose:** arquivo `compose.yaml`, serviço `db`, imagem `postgres:17`, volume `postgres_data`, rede `clinica_vetunif_default`
+- **Scripts api:** `"dev": "tsx watch --env-file-if-exists=.env ./src/server.ts"` · `"build": "tsc"` · `"start": "node ./dist/server.js"` · `"db:deploy": "prisma migrate deploy"`
+- **Scripts web:** `"dev": "vite"` · `"build": "vue-tsc -b && vite build"`
+- **Ordem de build:** `npm run build -w @clinica/shared` antes da api e do web (os dois consomem `packages/shared/dist`)
+- **Rodar no Windows:** `npm run dev -w @clinica/api` e `npm run dev -w @clinica/web` (terminais separados; o db sobe pelo compose)
+- **Rodar tudo no Docker:** `docker compose up --build` → `localhost:5173` (web), `localhost:3000` (api)
+- **Compose:** `compose.yaml` com os serviços `db` (postgres:17, volume `postgres_data`, healthcheck `pg_isready`), `api` e `web` (ambos `build: Dockerfile.dev`, context `.`)
 - **Variáveis (raiz/.env, modelo em .env.example):** `POSTGRES_DB` · `POSTGRES_USER` · `POSTGRES_PASSWORD` · `POSTGRES_PORT=5435`
-- **DATABASE_URL (apps/api/.env, api rodando no Windows):** `postgresql://vetunif:<senha>@localhost:5435/vetunif`
-- **DATABASE_URL (api dentro do compose):** `postgresql://vetunif:<senha>@db:5432/vetunif`
-- **Scripts api:** `"dev": "tsx watch --env-file=.env ./src/server.ts"` · `"build": "tsc"` · `"start": "node ./dist/server.js"`
-- **Rodar da raiz:** `npm run dev -w @clinica/api`
-- **Rota de saúde:** `GET /api/health` (hoje responde `{status: 'Running'}` sem consultar o banco)
-- **Listen:** `{ port: Number(process.env.PORT ?? 3000), host: '0.0.0.0' }`
-- **Prisma:** config em `apps/api/prisma7.config.ts` · schema em `apps/api/prisma/schema.prisma` · client gerado em `apps/api/src/generated/prisma` (ignorado pelo git)
+- **DATABASE_URL no Windows (apps/api/.env):** `postgresql://vetunif:<senha>@localhost:5435/vetunif`
+- **DATABASE_URL no compose:** `postgresql://${POSTGRES_USER:-vetunif}:${POSTGRES_PASSWORD:-vetunif}@db:5432/${POSTGRES_DB:-vetunif}`
+- **Proxy do Vite:** `'/api': process.env.API_URL ?? 'http://localhost:3000'` · no compose, `API_URL: http://api:3000`
+- **Vite no container:** `npm run dev -w @clinica/web -- --host 0.0.0.0`
+- **Comando da api no compose:** `sh -c "npm run db:deploy -w @clinica/api && npm run dev -w @clinica/api"`
+- **Rota de saúde:** `GET /api/health` → 200 `{"status":"healthy","dbConnection":"healthy"}` · com o db fora, 503 `{"mensagem":"Falha na conexão com o banco de dados."}`
+- **Erros da api:** formato `{ mensagem, campos? }` · classe `ErroHttp(statusCode, mensagem)` em `apps/api/src/models/erros.ts` · `setErrorHandler` + `setNotFoundHandler` em `server.ts` (404 `{"mensagem":"Rota não encontrada."}`)
+- **Shared (`packages/shared/src/index.ts`):** exporta `saudeSchema`/`Saude` e `erroSchema`/`Erro` · `exports` com `types: ./dist/index.d.ts` e `default: ./dist/index.js` · `declaration: true`
+- **Web (`apps/web/src/App.vue`):** `fetch('/api/health')` → `saudeSchema.parse` no 2xx, `erroSchema.safeParse` no erro, mensagem amigável no `catch` (com `console.error`)
+- **Prisma:** config em `apps/api/prisma7.config.ts` · schema em `apps/api/prisma/schema.prisma` · client gerado em `apps/api/src/generated/prisma` (fora do git)
 - **Primeira migration:** `20261125195835_setup_cria_tutor_animal` (tabelas `tutor` e `animal`, só `id SERIAL`)
-- **Comandos Prisma (de apps/api):** `npx prisma validate` · `npx prisma migrate dev --name <nome>` · `npx prisma generate`
-- **Instância do client:** `apps/api/src/db.ts` exporta `prisma` (PrismaPg + PrismaClient, falha cedo se `DATABASE_URL` ausente)
+- **Comandos Prisma (de apps/api):** `npx prisma validate` · `npx prisma migrate dev --name <nome>` · `npx prisma generate` · `npx prisma migrate deploy`
+- **Instância do client:** `apps/api/src/db.ts` exporta `prisma` (PrismaPg + PrismaClient; falha cedo se a `DATABASE_URL` estiver ausente)
+- **Commits do ticket:** de `d3dc6fe` a `d861fdb` ("feature: Compose completo, fim do ticket 01")
 
 ## Decisões Tomadas
-- **Ordem de montagem**: monorepo → Postgres no compose → api → shared → web → compose completo; testa cada camada antes da próxima.
-- **Entidades entram no seu ticket**: 01 só cria `tutor` e `animal` com PK, para provar o caminho das migrations antes do Neon no 02; colunas no 04/05; relação Animal → Tutor no 05.
-- **PK `Int @default(autoincrement())`**: todas as rotas exigem login e a permissão é checada no back; id adivinhável não dá acesso (segurança não depende de obscuridade). Candidato a ADR 0005.
-- **Tabelas no singular e minúsculas via `@@map`** (`tutor`, `animal`): evita aspas no SQL; manter o padrão (`usuario`, `atendimento`).
-- **ES Modules** (`"type": "module"` + `module: nodenext`): padrão da linguagem; Vite/Vue/Zod são ESM. Imports relativos com extensão `.js`.
-- **tsconfig da api**: `rootDir ./src`, `outDir ./dist`, `target ES2024` (acompanha o Node 24), `types ["node"]`, `strict`, `include ["src"]`.
-- **tsx no dev, tsc no build**: tsx não checa tipos e é devDependency; tsc é a barreira de tipos e roda uma vez no build.
-- **`.env` carregado por `--env-file`, não por dotenv no código**: o código só lê `process.env`; quem fornece as variáveis é o ambiente. `dotenv` fica só para a CLI do Prisma (importado no `prisma7.config.ts`).
-- **Dois `.env`**: raiz para o compose (credenciais do container); `apps/api/.env` para a api no Windows.
-- **Porta publicada configurável** (`POSTGRES_PORT`): evita conflito com outro serviço na 5432.
-- **Vulnerabilidade `effect` (via prisma CLI) aceita**: só em dev e sem entrada externa; `npm audit --omit=dev` = 0. Não usar `npm audit fix --force` (rebaixaria o prisma para a 6).
-- **npm em vez de pnpm**: monorepo simples sem ferramenta extra.
-- **Skills de IA geradas pelo `prisma init` apagadas** (`.agents`, `.claude`, `.windsurf`, `skills-lock.json` em apps/api).
+- **Ordem de montagem**: monorepo → Postgres no compose → api → shared → web → compose completo; cada camada é testada antes da próxima.
+- **Entidades entram no seu ticket**: o 01 só cria `tutor` e `animal` com PK, para provar o caminho das migrations; as colunas vêm no 04/05 e a relação Animal → Tutor no 05.
+- **PK `Int @default(autoincrement())`**: as rotas exigem login e a permissão é checada no back, então um id adivinhável não dá acesso. Candidato a ADR 0005.
+- **Tabelas no singular e em minúsculas via `@@map`**: evita aspas no SQL. Manter o padrão (`usuario`, `atendimento`).
+- **ES Modules** (`"type": "module"` + `module: nodenext`): imports relativos com `.js`.
+- **tsx no dev, tsc/vue-tsc no build**: o dev não checa tipos; o build é a barreira. Rodar o build antes de commitar.
+- **Variáveis vêm do ambiente**: `--env-file-if-exists` no dev; no compose, `environment`. O código só lê `process.env`. O `dotenv` fica só na CLI do Prisma.
+- **`--env-file-if-exists` em vez de `--env-file`**: no container não há `.env`, e o `--env-file` encerraria o Node com erro. Quando a variável existe no ambiente, ela prevalece sobre o arquivo.
+- **Erros só pelo handler central**: a rota lança `ErroHttp`; o handler loga o erro original (`request.log.error`) e responde `{ mensagem }`. O erro interno nunca vai para o cliente. Erros do Fastify com `statusCode < 500` viram "requisição inválida"; o resto vira 500.
+- **`unknown` no handler é estreitado** com `instanceof Error && 'statusCode' in error && typeof error.statusCode === 'number'`, e não com o atalho `setErrorHandler<FastifyError>`.
+- **503 para o banco fora**: dependência indisponível não é erro do cliente nem bug.
+- **O web valida a resposta com Zod (`parse`/`safeParse`) em vez de `as Saude`**: verificar em vez de afirmar; se a api mudar o formato, o erro aparece claro.
+- **Proxy `/api` no Vite**: mesma origem em dev e em prod (ADR 0004), sem CORS.
+- **Um `Dockerfile.dev` na raiz para api e web**: o monorepo exige o lockfile da raiz e todos os `package.json` para o `npm ci`. Os `package.json` são copiados antes do código para aproveitar o cache da camada do `npm ci`.
+- **`migrate deploy` ao subir a api no compose**: aplica as migrations existentes sem criar novas; com volume novo, as tabelas aparecem sozinhas. O mesmo comando serve para produção.
+- **Healthcheck no db + `depends_on: service_healthy`**: o container "sobe" antes de o Postgres aceitar conexões.
+- **OpenSSL instalado na imagem `slim`**: a CLI do Prisma procura por ele e avisa quando falta.
+- **Sem hot reload no compose, por enquanto**: o compose cumpre o critério do ticket; o dia a dia roda api e web no Windows. Bind mounts podem vir depois, se necessário.
+- **TypeScript 6 no web e 7 na api/shared**: o `vue-tsc` ainda depende do 6. Cada workspace tem o seu.
+- **Vulnerabilidade `effect` (via prisma CLI) aceita**: só existe em dev; `npm audit --omit=dev` = 0. Não usar `npm audit fix --force`.
+- **npm em vez de pnpm**: monorepo simples, sem ferramenta extra.
+- **Skills de IA geradas pelo `prisma init` apagadas** de apps/api.
 
 ## Pendências / Em Aberto
-Falta para fechar o ticket 01 (em ordem):
-- **Commit pendente**: `apps/api/src/db.ts`, `apps/api/tsconfig.json` (include), `apps/api/package.json` (adapter-pg), `package-lock.json`. Fazer push depois (prazo de commits 27/11).
-- **Rota de saúde com banco**: usar `prisma.$queryRaw` com `SELECT 1` em `/api/health`; responder 503 no formato `{ mensagem }` com o banco fora; testar com `docker compose stop db`.
-- **Handler global de erros** no Fastify no formato `{ mensagem, campos? }`.
-- **packages/shared**: TypeScript, ESM, schema Zod da resposta de saúde usado pela api e pelo web.
-- **apps/web**: `npm create vite@latest` (Vue + TS) em `apps/web`, Tailwind, página que chama `/api/health` e mostra "API ok / banco ok" ou erro amigável.
-- **Compose completo**: serviços `api` e `web` com Dockerfiles de dev; `DATABASE_URL` com `db:5432` no `environment` da api.
-- **Marcar os critérios** no arquivo do ticket 01 e mudar o Status para em andamento/concluído.
-- Para o ticket 02: decidir em que momento do deploy roda o `prisma migrate deploy` (CLI e dotenv são devDependencies).
+- **Ticket 02 (deploy Render + Neon)**: decidir quando roda o `prisma migrate deploy` em produção (a CLI é devDependency; o script `db:deploy` já existe), o Dockerfile/build de produção e como a api serve o web compilado na mesma origem.
+- Opcional: trocar `==` por `===` no `setErrorHandler` (`server.ts`).
 - Opcional: ADR 0005 da PK `Int`; mencionar no PDF a avaliação da vulnerabilidade do `effect`.
-- Decidir se `.claude/docs/` (este arquivo) vai para o git, dado o README declarar que não há código feito com IA.
+- Decidir se atualiza a pendência "versão do Node" em `docs/especificacao.md` (Node 24 LTS).
+- Decidir se `.claude/docs/` (este arquivo) fica no git, já que o README declara que o código não foi feito por IA.
 
 ## Armadilhas Conhecidas
-- **`-D` vale para o comando inteiro**: `npm install a -D b` põe os dois em dev. Um comando por destino.
-- **Tag `latest` do pacote `prisma` aponta para `8.0.0-rc`**: instalar sempre `prisma@7` e `@prisma/client@7` juntos; CLI e client na mesma versão.
-- **Docs de versão errada**: `prisma contract emit` não existe na 7. Conferir a versão instalada e usar `npx prisma --help` como fonte da verdade.
-- **`prisma init` gera extras**: ~200 arquivos de skills de IA e um `.env` com URL `prisma+postgres://` de exemplo. Sempre olhar o `git status` depois de um gerador. Não rodar `init` de novo.
-- **Prisma 7 não lê `.env` sozinho** e o `migrate dev` não roda o `generate`: são passos separados.
-- **Exemplo da doc usa `` `${process.env.DATABASE_URL}` ``**: transforma `undefined` em `"undefined"` e anula a checagem. Ler `process.env` direto e tratar com `if` + `throw`.
-- **Variáveis de ambiente são `string | undefined`**: converter com `Number(x ?? padrão)` (padrão antes da conversão; `Number(undefined)` é `NaN`).
-- **Sem `include`, o `tsc` compila todo `.ts` da pasta** (pegou o `prisma7.config.ts`) e emite `.js` mesmo com erro.
-- **`tsc arquivo.ts` ignora o tsconfig**; `--ignoreConfig` gera `.js` ao lado do fonte. Usar só `tsc`.
-- **`tsc` compila e sai calado; `tsx` executa.** Rodar o servidor com `tsx`.
-- **Interpolação `${}` só funciona com crase**, não com aspas simples ou duplas.
-- **Barra invertida em scripts do package.json quebra o JSON** (`\s` é escape inválido) e não funciona no Linux. Usar `/`.
-- **`localhost` dentro de container é o próprio container**: na rede do compose, usar o nome do serviço (`db:5432`).
-- **Variáveis `POSTGRES_*` só valem na primeira inicialização do volume**: para trocar a senha, `docker compose down -v` (apaga os dados) ou `ALTER USER`.
-- **`git add .` só pega a pasta atual**: rodar da raiz ou usar `git add -A`; conferir se o `package-lock.json` entrou.
-- **Pasta gerada não é sua**: nunca criar arquivos em `src/generated/`; ela fica fora do git, mas precisa ser compilada para o `dist/`.
+- **`-D` vale para o comando inteiro**: `npm install a -D b` põe os dois em dev. Use um comando por destino.
+- **A tag `latest` do `prisma` aponta para `8.0.0-rc`**: instale `prisma@7` e `@prisma/client@7` juntos.
+- **Docs de versão errada**: `prisma contract emit` não existe na 7. A fonte da verdade é `npx prisma --help`.
+- **O `prisma init` gera extras** (~200 arquivos de skills e um `.env` `prisma+postgres://`). Olhe o `git status` depois de qualquer gerador e não rode `init` de novo.
+- **O Prisma 7 não lê o `.env` sozinho** e o `migrate dev` não roda o `generate`.
+- **O exemplo da doc usa `` `${process.env.DATABASE_URL}` ``**: transforma `undefined` em `"undefined"` e anula a checagem.
+- **Variáveis de ambiente são `string | undefined`**: use `Number(x ?? padrão)`.
+- **Sem `include`, o `tsc` compila todo `.ts` da pasta** e emite `.js` mesmo com erro. `tsc arquivo.ts` ignora o tsconfig.
+- **`tsc` compila e sai calado; `tsx` executa.**
+- **Interpolação `${}` só funciona com crase.**
+- **Barra invertida em script do package.json quebra o JSON.** Use `/`.
+- **`localhost` dentro de um container é o próprio container**: use o nome do serviço (`db:5432`, `api:3000`). A porta interna do db é 5432; a 5435 só vale no Windows.
+- **Servidor em container precisa ouvir em `0.0.0.0`**: o Fastify usa `host: '0.0.0.0'`; o Vite usa `--host 0.0.0.0`.
+- **Variáveis `POSTGRES_*` só valem na primeira inicialização do volume**: para trocar, use `down -v` (apaga os dados). O `down` sem `-v` preserva o banco.
+- **`$${VAR}` no compose** deixa a variável para o shell do container; `${VAR}` é resolvido pelo compose a partir do `.env` da raiz.
+- **`git add .` só pega a pasta atual**: rode da raiz (`git add -A`) e confira o lockfile.
+- **Pasta gerada não é sua**: nunca edite `src/generated/`.
+- **O `catch` genérico engole qualquer erro**: `saudeSchemaparse` (sem o ponto) virou "Não foi possível falar com a API.", e a api estava ok. Sempre `console.error(e)`/`log.error` no `catch` e rodar `npm run build` (o `vue-tsc` pega nomes inexistentes).
+- **Em TS, use `string`, não `String`** (o wrapper de objeto).
+- **Erro de digitação no `.dockerignore` falha em silêncio**: `**/nodde_modules` deixou o `node_modules` do Windows entrar na imagem; o symlink do workspace apontava para `C:/...` e o Vite não achou o `@clinica/shared`. Diagnóstico: `docker compose exec web ls -la node_modules/@clinica`.
+- **`rm -rf` de caminho errado não dá erro** (`/ver/lib/...`): confira os caminhos de limpeza.
+- **No `create-vite`, o template fixa `@types/node` na versão mais nova**: alinhe com `@types/node@24`.
+- **Classe Tailwind com erro de digitação (`felx`) não acusa nada**: o estilo simplesmente não aplica.
+- **O Error handler do Fastify recebe `unknown`** na versão atual: estreite o tipo antes de ler `statusCode`.
 
 ## Ultima Atualizacao
-2026-11-25 — Criação: progresso do ticket 01 (monorepo, compose com Postgres, api Fastify/TS, Prisma 7 com migration e client) e a metodologia modo professor.
+2026-11-26 — Ticket 01 concluído: handler de erros, shared com Zod, web Vue + Tailwind, compose com três serviços; metodologia com ritmo ajustado; armadilhas de Docker e do `catch`.
