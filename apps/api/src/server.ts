@@ -3,11 +3,22 @@ import { prisma } from './db.js'
 import { ErroHttp } from './models/erros.js';
 import type { Saude } from '@clinica/shared';
 
+import fastifyStatic from '@fastify/static';
+import { existsSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+
 const ENV_PORT = process.env.PORT
 
 const fastify = Fastify({
     logger: true
 })
+
+const WEB_DIST = fileURLToPath(new URL('../../web/dist', import.meta.url))
+const servirWeb = existsSync(WEB_DIST)
+
+if (servirWeb) {
+    await fastify.register(fastifyStatic, { root: WEB_DIST })
+}
 
 fastify.get('/api/health', async (request, reply): Promise<Saude> => {
     try {
@@ -35,6 +46,9 @@ fastify.setErrorHandler((error, request, reply) => {
 })
 
 fastify.setNotFoundHandler((request, reply) => {
+    if (servirWeb && request.method == 'GET' && !request.url.startsWith('/api')) {
+        return reply.sendFile('index.html')
+    }
     return reply.code(404).send({ mensagem: 'Rota não encontrada.' })
 })
 
