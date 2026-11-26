@@ -11,6 +11,8 @@ import fastifyJwt from '@fastify/jwt';
 import { rotasAuth } from './rotas/auth.js';
 import './auth/tipos.js';
 
+import { autenticar } from './auth/guards.js';
+
 const ENV_PORT = process.env.PORT
 
 const fastify = Fastify({
@@ -60,6 +62,8 @@ fastify.setNotFoundHandler((request, reply) => {
     }
     return reply.code(404).send({ mensagem: 'Rota não encontrada.' })
 })
+
+fastify.addHook(`onRequest`, autenticar)
 
 const start = async () => {
   try {

@@ -29,5 +29,10 @@ export async function rotasAuth(app: FastifyInstance) {
         }
         return { token: app.jwt.sign(sessao), usuario: sessao }
     })
+
+    app.get(`/api/sessao`, async (request): Promise<UsuarioSessao> => {
+        const { id, nome, nomeUsuario, perfil } = request.user
+        return {id, nome, nomeUsuario, perfil }
+    })
 }
 
