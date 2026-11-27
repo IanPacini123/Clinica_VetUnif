@@ -13,7 +13,12 @@ datasource db {
 }
 
 model Tutor {
-    id  Int @id @default(autoincrement())
+    id          Int @id @default(autoincrement())
+    nome        String
+    cpf         String @unique @db.Char(11)
+    telefone    String
+    email       String?
+    ativo       Boolean @default(true)
 
     @@map("tutor")
 }
