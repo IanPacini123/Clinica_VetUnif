@@ -2,7 +2,7 @@ import { createRouter, createWebHistory, type RouteRecordRaw } from "vue-router"
 import { usuarioSessaoSchema, type Perfil } from "@clinica/shared";
 import { token, usuario, podeAcessar } from "./sessao/session";
 import { api } from "./api";
-import { PODE_CRIAR_E_INATIVAR } from "./perfis";
+import { PODE_CRIAR_E_INATIVAR, PODE_GERIR_USUARIOS } from "./perfis";
 
 declare module 'vue-router' {
     interface RouteMeta {
@@ -16,7 +16,7 @@ export const telas: RouteRecordRaw[] = [
     { path: '/', name: 'recepcao', component: () => import('./views/RecepcaoView.vue'), meta: { titulo: 'Recepção' } },
     { path: '/tutores', name: 'tutores', component: () => import('./views/TutoresView.vue'), meta: { titulo: 'Tutores' } },
     { path: '/animais', name: 'animais', component: () => import('./views/AnimaisView.vue'), meta: { titulo: 'Animais' } },
-    { path: '/usuarios', name: 'usuarios', component: () => import('./views/UsuariosView.vue'), meta: { titulo: 'Usuários', perfis: ['ADMIN'] } },
+    { path: '/usuarios', name: 'usuarios', component: () => import('./views/UsuariosView.vue'), meta: { titulo: 'Usuários', perfis: PODE_GERIR_USUARIOS } },
 ]
 
 const outrasTelas: RouteRecordRaw[] = [
@@ -51,6 +51,24 @@ const outrasTelas: RouteRecordRaw[] = [
         path: '/animais/:id',
         name: 'animal-detalhe',
         component: () => import('./views/AnimalDetalheView.vue'),
+    },
+    {
+        path: '/usuarios/novo',
+        name: 'usuario-novo',
+        component: () => import('./views/UsuarioFormView.vue'),
+        meta: { perfis: PODE_GERIR_USUARIOS },
+    },
+    {
+        path: '/usuarios/:id/editar',
+        name: 'usuario-editar',
+        component: () => import('./views/UsuarioFormView.vue'),
+        meta: { perfis: PODE_GERIR_USUARIOS },
+    },
+    {
+        path: '/usuarios/:id',
+        name: 'usuario-detalhe',
+        component: () => import('./views/UsuarioDetalheView.vue'),
+        meta: { perfis: PODE_GERIR_USUARIOS },
     },
 ]
 
