@@ -1,7 +1,7 @@
-# Progresso da Implementação: Tickets 01 a 10
+# Progresso da Implementação: Tickets 01 a 11
 
 ## Resumo
-Registro da implementação e da metodologia de trabalho. Tickets em `.scratch/clinica-veterinaria/issues/`. **Ticket 01** (esqueleto local), **02** (esqueleto publicado em `https://clinica-vetunif.onrender.com/`, com deploy automático por push) e **03** (login e sessão) foram concluídos em 2026-11-26. O **04** (CRUD de Tutor), o **05** (CRUD de Animal, com os animais no detalhe do Tutor) e o **06** (inativos e reativação, só para o ADMIN) foram concluídos em 2026-11-27. O **07** (gestão de Usuários, só ADMIN), o **08** (Chegada e Fila) e o **09** (Atendimento pelo VETERINARIO) foram concluídos e publicados em 2026-11-27. O **10** (Histórico do Animal) foi concluído e publicado em 2026-11-27. Do 03 ao 10, tudo foi verificado na URL publicada; o status nos arquivos dos tickets é marcado pelo usuário. Próximo: ticket 11 (Seed de demonstração e README). As regras de negócio ficam em `docs/especificacao.md`; o deploy, no ADR 0004.
+Registro da implementação e da metodologia de trabalho. Tickets em `.scratch/clinica-veterinaria/issues/`. **Ticket 01** (esqueleto local), **02** (esqueleto publicado em `https://clinica-vetunif.onrender.com/`, com deploy automático por push) e **03** (login e sessão) foram concluídos em 2026-11-26. O **04** (CRUD de Tutor), o **05** (CRUD de Animal, com os animais no detalhe do Tutor) e o **06** (inativos e reativação, só para o ADMIN) foram concluídos em 2026-11-27. O **07** (gestão de Usuários, só ADMIN), o **08** (Chegada e Fila) e o **09** (Atendimento pelo VETERINARIO) foram concluídos e publicados em 2026-11-27. O **10** (Histórico do Animal) e o **11** (seed de demonstração e README) foram concluídos e publicados em 2026-11-27; antes do 11, o banco de produção foi zerado. Do 03 ao 11, tudo foi verificado na URL publicada; o status nos arquivos dos tickets é marcado pelo usuário. Próximo: PDF e entrega. As regras de negócio ficam em `docs/especificacao.md`; o deploy, no ADR 0004.
 
 ## Metodologia (modo professor, com ritmo ajustado)
 - **O usuário escreve todo o código da aplicação.** Claude guia, revisa e explica. Claude só executa limpeza, verificação (build, curl, inspecionar arquivos ou containers) e documentação quando o usuário pede ou quando é preciso para diagnosticar.
@@ -65,7 +65,7 @@ Registro da implementação e da metodologia de trabalho. Tickets em `.scratch/c
 - **CPF válido para teste:** `529.982.247-25`
 - **Login:** 400 `Informe usuário e senha.` · 401 `Usuário ou senha inválidos.` (usuário inexistente ou senha errada) · 403 `Usuário foi inativado. Procure o administrador.` · 200 `{ token, usuario }`
 - **Proteção (`apps/api/src/auth/guards.ts`):** `ROTAS_PUBLICAS = new Set(['/api/login', '/api/health'])`, comparada com `request.routeOptions.url`; fora de `/api/` passa direto · 401 `Sessão expirada ou inválida. Entre novamente.` · `exigirPerfil(...perfis)` no `preHandler` → 403 `Você não tem a permissão para esta ação.` (`SEM_PERMISSAO`) · `podeVerInativos(request)` (`perfil === 'ADMIN'`)
-- **Arquivos de auth da api:** `src/auth/senha.ts` (`gerarHash`, `conferirSenha`, bcrypt `CUSTO = 10`) · `src/auth/tipos.ts` (`declare module '@fastify/jwt'`, payload e user = `UsuarioSessao`) · `src/rotas/auth.ts` (`rotasAuth`) · `src/seed.ts` (`upsert` de `admin` com `update: {}`)
+- **Arquivos de auth da api:** `src/auth/senha.ts` (`gerarHash`, `conferirSenha`, bcrypt `CUSTO = 10`) · `src/auth/tipos.ts` (`declare module '@fastify/jwt'`, payload e user = `UsuarioSessao`) · `src/rotas/auth.ts` (`rotasAuth`) · `src/seed.ts` (ver "Seed")
 - **Payload do JWT:** `id`, `nome`, `nomeUsuario`, `perfil`, `iat`, `exp` (`exp - iat = 28800`)
 - **Rota de saúde:** 200 `{"status":"healthy","dbConnection":"healthy"}` · com o db fora, 503 `{"mensagem":"Falha na conexão com o banco de dados."}`
 - **Erros da api:** `{ mensagem, campos? }` · `ErroHttp(statusCode, mensagem, campos?)` em `apps/api/src/models/erros.ts` (campo `readonly campos?: Record<string, string> | undefined`) · o handler responde `{ mensagem, campos }` · 404 `{"mensagem":"Rota não encontrada."}`
@@ -84,10 +84,13 @@ Registro da implementação e da metodologia de trabalho. Tickets em `.scratch/c
 - **Índice parcial (verbatim):** `@@unique([animalId], where: raw("(status = ANY (ARRAY['AGUARDANDO'::status_atendimento, 'EM_ATENDIMENTO'::status_atendimento]))"))` → índice `atendimento_animal_id_key`
 - **Índice parcial do veterinário (verbatim):** `@@unique([veterinarioId], where: raw("(status = 'EM_ATENDIMENTO'::status_atendimento)"))` → índice `atendimento_veterinario_id_key`
 - **Conferir drift do schema:** `npx prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --script` (de apps/api) → `-- This is an empty migration.`
-- **Migrations:** `20261125195835_setup_cria_tutor_animal` · `20261126192159_cria_usuario` · `20261127020652_tutor_campos` · `20261127033241_animal_campos` · `20261127120019_cria_atendimento` · `20261127103445_atendimento_um_por_veterinario`; todas aplicadas no local e no Neon
+- **Migrations:** `20261125195835_setup_cria_tutor_animal` · `20261126192159_cria_usuario` · `20261127020652_tutor_campos` · `20261127033241_animal_campos` · `20261127120019_cria_atendimento` · `20261127133449_atendimento_um_por_veterinario` (era `…103445`; renomeada e com `UPDATE _prisma_migrations` no local e no Neon); todas aplicadas no local e no Neon
+- **Testar migrations e seed num banco novo:** `docker compose exec db psql -U vetunif -d vetunif -c "create database seed_teste"` → `DATABASE_URL` apontando para `.../seed_teste` → `npx prisma migrate deploy` → `ADMIN_SENHA=... node ./dist/seed.js` (duas vezes) → `drop database seed_teste`
+- **Seed (`apps/api/src/seed.ts`):** `garantirUsuario({ nomeUsuario, nome, perfil, crmv, senha })` (`upsert`, `update: {}`) para `admin` (`ADMIN_SENHA`), `atendente` (`Beatriz Lima`) e `veterinario` (`Paulo Mendes`, `CRMV-CE 01234`), os dois com `SENHA_DEMO = 'demo1234'` · `CPF_MARCADOR = '31820465780'`: se o Tutor existe, loga `Demonstração já existe; nada a criar.`; senão, `$transaction([...])` com 3 `tutor.create` aninhando animais e atendimentos → `Demonstração criada: 3 tutores, 5 animais.` · helpers `minutosAtras`, `periodo(dias)` (chegada, início +15 min, fim +40 min), `cancelado(dias)` (sem `dataInicio`), `finalizado = { status, veterinarioId }`
+- **Dados de demonstração:** `Mariana Albuquerque` (`31820465780`): `Thor` (2 FINALIZADOS + 1 AGUARDANDO) e `Mel` (1 CANCELADO, sem raça) · `Carlos Eduardo Pinheiro` (`47291503841`, sem e-mail): `Bidu` (1 FINALIZADO prioritário + 1 AGUARDANDO prioritário) · `Fernanda Rocha` (`60538192470`): `Piu` (1 FINALIZADO, sem nascimento) e `Nina` (1 CANCELADO + 1 AGUARDANDO sem queixa) · datas relativas ao momento do seed
 - **Comandos Prisma (de apps/api):** `npx prisma validate` · `npx prisma migrate dev --name <nome>` · `npx prisma generate` · `npx prisma migrate deploy`
 - **Ver o banco local:** `docker compose exec db psql -U vetunif -d vetunif -c "<sql>"`
-- **Commits:** ticket 01 de `d3dc6fe` a `d861fdb` · ticket 02 `485a806` e `508054a` · ticket 03 de `c5f489f` a `f086b38` (7 commits) · ticket 04 de `9a91e80` a `4da3495` (8 commits) · ticket 05 `560c56a` (api e shared) e `d7ea5fb` (web) · ticket 06 `810ab9f` (api e shared) e `fa33268` (web) · ticket 07 `1e18519` (api e shared) e `ea34583` (web) · ticket 08 `0efb811` (banco, api e shared) e `1a53c28` (web) · ticket 09 `0c1a297` (banco, api e shared) e `9053c8f` (web) · ticket 10 `1cbb875` (api e shared) e `b9fb4e4` (web)
+- **Commits:** ticket 01 de `d3dc6fe` a `d861fdb` · ticket 02 `485a806` e `508054a` · ticket 03 de `c5f489f` a `f086b38` (7 commits) · ticket 04 de `9a91e80` a `4da3495` (8 commits) · ticket 05 `560c56a` (api e shared) e `d7ea5fb` (web) · ticket 06 `810ab9f` (api e shared) e `fa33268` (web) · ticket 07 `1e18519` (api e shared) e `ea34583` (web) · ticket 08 `0efb811` (banco, api e shared) e `1a53c28` (web) · ticket 09 `0c1a297` (banco, api e shared) e `9053c8f` (web) · ticket 10 `1cbb875` (api e shared) e `b9fb4e4` (web) · ticket 11 `61d38e9` (fix da migration) e `b2277d0` (seed); README sem commit
 
 ## Decisões Tomadas
 - **Ordem de montagem**: monorepo → Postgres → api → shared → web → compose; cada camada é testada antes da próxima.
@@ -197,10 +200,19 @@ Registro da implementação e da metodologia de trabalho. Tickets em `.scratch/c
 - **A api consulta o Animal antes da lista**: sem isso, inexistente e sem atendimentos dariam os dois `[]`; e segue a regra de inativo do detalhe.
 - **O Histórico não filtra status na api**; o web esconde o Atendimento da tela com `ocultarId`. No detalhe do Animal, o atendimento em aberto também aparece.
 - **`atendimentosSchema` serve à Fila e ao Histórico**: o mesmo padrão do `animaisSchema`.
+- **Produção zerada antes do seed de demonstração** (escolha do usuário): os dados de teste tinham CPFs e nomes de usuário desconhecidos, que podiam colidir com o seed e derrubar o deploy. Feito com snapshot (branch `antes-do-reset` no Neon) → `TRUNCATE TABLE atendimento, animal, tutor, usuario RESTART IDENTITY` (sem a `_prisma_migrations`) → novo `JWT_SECRET` no Render (invalida tokens com ids que não existem mais) e deploy, que recriou o `admin` com id 1.
+- **Demonstração por marcador (CPF do primeiro Tutor) + `$transaction` em array**: Animal e Atendimento não têm chave única para `upsert`; o marcador pula o bloco inteiro, e a transação garante tudo ou nada. Se o professor inativar algo, o próximo deploy não recria.
+- **Sem EM_ATENDIMENTO na demonstração**: o `veterinario` entra livre para testar o "Atender".
+- **`SENHA_DEMO` no código, senha do `admin` só no ambiente e no PDF** (escolha do usuário): as de `atendente` e `veterinario` estão no README público de qualquer jeito; com o admin secreto, um estranho não troca as senhas nem inativa tudo. Risco aceito: qualquer um pode entrar como `atendente` ou `veterinario`.
+- **README**: link, aviso de hibernação, credenciais (admin "no PDF"), dados de exemplo, "Excluir é inativar" (ADR 0001), stack, `docker compose up --build` (funciona sem `.env`; admin local `admin12345`) e links da documentação.
+- **Migration fora de ordem corrigida por rename** (`…103445` → `…133449`, o horário real da aplicação), com `UPDATE _prisma_migrations SET migration_name = ...` no Neon e no local **antes** do push: o conteúdo é o mesmo, então o checksum bate.
 
 ## Pendências / Em Aberto
-- **Status dos tickets 03 a 10**: o usuário marca nos arquivos dos tickets (hoje todos com `ready-for-agent`).
-- **Dados de teste no banco local**: usuários `atend.teste` (ATENDENTE), `vet.teste` (VETERINARIO), `t07.vet` (id 5, VETERINARIO), `t07.atend` (id 7, ATENDENTE, senha trocada no teste), `t08.atend` (ATENDENTE), `t08.vet` (VETERINARIO), `t09.vet1`, `t09.vet2` e `t10.vet` (VETERINARIO); tutores 33 (`ian teste 123`) e 34 inativos, 35 e 37 ativos; animais 1 a 5, com o 2 (`Mimi`, do tutor 34) inativo; atendimentos 6 (`Rex II`, prioritário, FINALIZADO com peso, diagnóstico e conduta), 9 (`pepeu`, EM_ATENDIMENTO com o `t08.vet`, posto direto no SQL), 8 e 10 cancelados, 11 e 17 AGUARDANDO.
+- **Status dos tickets 03 a 11**: o usuário marca nos arquivos dos tickets (hoje todos com `ready-for-agent`).
+- **Commit do README** (`docs: ticket 11`), junto com esta KB.
+- **Apagar a branch `antes-do-reset` no Neon** quando a demonstração estiver confirmada.
+- **Testar um clone limpo** com `docker compose up --build` num volume novo: o migrate e o seed num banco vazio foram testados, o compose completo não.
+- **Dados de teste no banco local** (além da demonstração, criada pelo `seed:dev`): usuários `atend.teste` (ATENDENTE), `vet.teste` (VETERINARIO), `t07.vet` (id 5, VETERINARIO), `t07.atend` (id 7, ATENDENTE, senha trocada no teste), `t08.atend` (ATENDENTE), `t08.vet` (VETERINARIO), `t09.vet1`, `t09.vet2` e `t10.vet` (VETERINARIO); tutores 33 (`ian teste 123`) e 34 inativos, 35 e 37 ativos; animais 1 a 5, com o 2 (`Mimi`, do tutor 34) inativo; atendimentos 6 (`Rex II`, prioritário, FINALIZADO com peso, diagnóstico e conduta), 9 (`pepeu`, EM_ATENDIMENTO com o `t08.vet`, posto direto no SQL), 8 e 10 cancelados, 11 e 17 AGUARDANDO.
 - **Opcional no web**: avisar alterações não salvas ao sair da tela de Atendimento (hoje o que não foi salvo se perde; o painel de devolver avisa).
 - **Opcional na api**: um POST sem corpo responde `campos: { "": "Invalid input..." }`; as mensagens do `pagina` e do `inativos` inválidos saem em inglês (padrão do Zod).
 - **Opcional no web**: o cadastro rápido do `SeletorTutor` mostra a mensagem do CPF de tutor inativo, mas não o link para a lista de inativos.
@@ -210,8 +222,7 @@ Registro da implementação e da metodologia de trabalho. Tickets em `.scratch/c
   - registrar a avaliação da vulnerabilidade do `effect`;
   - registrar que o token emitido antes de uma inativação vale por até 8 h (o JWT não guarda estado); pelo mesmo motivo, nome e perfil alterados só aparecem no topo depois de entrar de novo;
   - registrar a janela de concorrência entre cadastrar ou reativar um Animal e inativar o Tutor dele;
-  - incluir as credenciais de demonstração (ticket 11).
-- **Ticket 11**: o seed passa a criar um usuário de cada perfil (`admin`, `atendente`, `veterinario`), mais tutores, animais e histórico.
+  - incluir as credenciais de demonstração, com a senha do `admin` de produção (o README só traz `atendente` e `veterinario`).
 - **Opcionais**:
   - ADR 0005 da PK `Int`;
   - atualizar a pendência "versão do Node" em `docs/especificacao.md` (Node 24 LTS);
@@ -266,6 +277,9 @@ Registro da implementação e da metodologia de trabalho. Tickets em `.scratch/c
 - **Renomear um export do shared quebra os consumidores**: a troca no web vai no mesmo commit do shared (`git add` com os caminhos, e não `-A`); senão, aquele commit não compila.
 - **Uma rota `/api` inexistente também responde 401 sem token**: para saber se a rota nova existe, teste com token.
 - **Produção sem o código novo**: commits locais sem push (`git status -sb` mostra `ahead N`), e o Render só faz deploy no push. Para conferir o que está publicado, procure a rota nova no `assets/index-*.js` da URL pública.
+- **O nome da pasta da migration define a ordem num banco vazio**: a `…103445_atendimento_um_por_veterinario` vinha antes da `…120019_cria_atendimento` e, num banco novo, criava o índice antes da tabela. Local e Neon não acusavam porque aplicaram na ordem de criação. Teste o `migrate deploy` num banco novo (`seed_teste`).
+- **Renomear uma migration já aplicada quebra o deploy** sem o `UPDATE` do `migration_name` no `_prisma_migrations` de cada banco: o Prisma tentaria aplicá-la de novo.
+- **`| tail` depois do `migrate deploy` escondeu a falha**: a migration quebrada só apareceu sem o filtro. Confira o código de saída ou a mensagem `All migrations have been successfully applied.`
 
 ## Ultima Atualizacao
-2026-11-27 — Ticket 10 concluído e publicado: rota do Histórico, componente `HistoricoAnimal` no detalhe do Animal e na tela de Atendimento.
+2026-11-27 — Ticket 11 concluído e publicado: produção zerada, seed de demonstração, migration fora de ordem corrigida e README técnico.
