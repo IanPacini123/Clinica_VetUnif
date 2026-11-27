@@ -4,19 +4,19 @@
 
 **Blocked by:** 05 (CRUD de Animal)
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Entidade Atendimento no banco com Animal, VETERINARIO (opcional até ser pego), Status, Prioridade, Queixa, datas e os campos clínicos (peso, anamnese, diagnóstico, conduta) ainda vazios
-- [ ] Status possíveis: AGUARDANDO, EM_ATENDIMENTO, FINALIZADO, CANCELADO
-- [ ] Registrar Chegada cria Atendimento AGUARDANDO; só ATENDENTE e ADMIN podem
-- [ ] Queixa opcional, obrigatória quando Prioridade está marcada
-- [ ] Animal com Atendimento em aberto (AGUARDANDO ou EM_ATENDIMENTO) não pode receber nova Chegada (409)
-- [ ] Fluxo de Animal novo: cadastro de Animal e retorno à Chegada com o Animal selecionado
-- [ ] Fila mostra Atendimentos AGUARDANDO e EM_ATENDIMENTO; prioritários no topo com cor diferente, depois por ordem de Chegada; entre prioritários, por Chegada
-- [ ] Cards EM_ATENDIMENTO mostram o nome do VETERINARIO
-- [ ] Fila atualiza sozinha a cada ~10s e tem botão de atualizar
-- [ ] Prioridade e Queixa editáveis enquanto AGUARDANDO
-- [ ] Cancelar Atendimento AGUARDANDO (ATENDENTE e ADMIN), com confirmação
-- [ ] Inativar Animal com Atendimento em aberto devolve 409 com mensagem clara
-- [ ] Layout da Fila funciona no celular
-- [ ] Funciona na URL publicada
+- [x] Entidade Atendimento no banco com Animal, VETERINARIO (opcional até ser pego), Status, Prioridade, Queixa, datas e os campos clínicos (peso, anamnese, diagnóstico, conduta) ainda vazios
+- [x] Status possíveis: AGUARDANDO, EM_ATENDIMENTO, FINALIZADO, CANCELADO
+- [x] Registrar Chegada cria Atendimento AGUARDANDO; só ATENDENTE e ADMIN podem
+- [x] Queixa opcional, obrigatória quando Prioridade está marcada
+- [x] Animal com Atendimento em aberto (AGUARDANDO ou EM_ATENDIMENTO) não pode receber nova Chegada (409)
+- [x] Fluxo de Animal novo: cadastro de Animal e retorno à Chegada com o Animal selecionado
+- [x] Fila mostra Atendimentos AGUARDANDO e EM_ATENDIMENTO; prioritários no topo com cor diferente, depois por ordem de Chegada; entre prioritários, por Chegada
+- [x] Cards EM_ATENDIMENTO mostram o nome do VETERINARIO
+- [x] Fila atualiza sozinha a cada ~10s e tem botão de atualizar
+- [x] Prioridade e Queixa editáveis enquanto AGUARDANDO
+- [x] Cancelar Atendimento AGUARDANDO (ATENDENTE e ADMIN), com confirmação
+- [x] Inativar Animal com Atendimento em aberto devolve 409 com mensagem clara
+- [x] Layout da Fila funciona no celular
+- [x] Funciona na URL publicada

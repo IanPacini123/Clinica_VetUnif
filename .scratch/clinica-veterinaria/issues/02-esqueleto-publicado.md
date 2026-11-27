@@ -4,12 +4,12 @@
 
 **Blocked by:** 01 (Esqueleto local ponta a ponta)
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Repositório público no GitHub com o código do ticket 01
-- [ ] Dockerfile multi-stage que compila shared, web e api e gera uma imagem que serve front e API
-- [ ] Fastify serve os arquivos do Vue e devolve `index.html` para rotas que não são da API (Vue Router em modo history)
-- [ ] Banco no Neon com as migrations aplicadas no deploy
-- [ ] Segredos (URL do banco, segredo do JWT) configurados como variáveis de ambiente no Render, nunca no repositório
-- [ ] Acessando a URL pública, a página mostra "API ok / banco ok"
-- [ ] Push na branch principal dispara novo deploy automaticamente
+- [x] Repositório público no GitHub com o código do ticket 01
+- [x] Dockerfile multi-stage que compila shared, web e api e gera uma imagem que serve front e API
+- [x] Fastify serve os arquivos do Vue e devolve `index.html` para rotas que não são da API (Vue Router em modo history)
+- [x] Banco no Neon com as migrations aplicadas no deploy
+- [x] Segredos (URL do banco, segredo do JWT) configurados como variáveis de ambiente no Render, nunca no repositório
+- [x] Acessando a URL pública, a página mostra "API ok / banco ok"
+- [x] Push na branch principal dispara novo deploy automaticamente

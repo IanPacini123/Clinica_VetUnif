@@ -100,15 +100,35 @@ Para apagar os dados locais e começar do zero: `docker compose down -v`.
 
 ## Declaração de uso de IA
 
-Foi utilizado o **Claude Code** (Anthropic) como assistente no **planejamento** do projeto. Até o momento, **nenhum código da aplicação foi implementado com IA**. O uso se limitou a:
+Usei o **Claude Code** (Anthropic) como assistente durante todo o projeto: no planejamento, para guiar o desenvolvimento e para guiar o deploy. **Todo o código da aplicação foi escrito por mim**, passo a passo, no meu editor.
+
+### Planejamento
 
 - Discussão da proposta do trabalho e escolha de stack e infraestrutura.
 - Entrevista estruturada para definir entidades, regras de negócio, permissões e fluxos.
 - Redação do glossário (`CONTEXT.md`), dos ADRs e da especificação (`docs/especificacao.md`).
 - Divisão do trabalho em tickets de implementação (`.scratch/`).
-- Arquivos de configuração do repositório (`.gitignore` e `.gitattributes`) e este README.
 
-As decisões de produto e de arquitetura foram tomadas pelo autor; a IA propôs opções e registrou as decisões. Esta seção será atualizada conforme o projeto avançar.
+### Desenvolvimento
+
+Cada ticket foi dividido em passos pequenos (banco, API, pacote compartilhado, telas), e cada passo seguiu o mesmo ciclo:
+
+1. A IA explicava o que fazer e por quê, com um trecho de referência.
+2. Eu escrevia o código, adaptava ao projeto e rodava.
+3. A IA revisava o que escrevi (arquivos, build e testes com `curl`), apontava erros e explicava a causa.
+4. Eu corrigia e fazia o commit.
+
+Nas **telas**, usei a IA também para criar e ajudar nos layouts (estrutura do HTML e classes do Tailwind), que depois escrevi e ajustei.
+
+### Deploy
+
+A IA guiou a configuração do Docker, do Render e do Neon, explicou os erros de build e de migration e conferiu cada publicação na URL pública. As contas, os segredos e as configurações nos painéis foram feitos por mim.
+
+### Documentação
+
+A IA redigiu os arquivos de configuração do repositório (`.gitignore` e `.gitattributes`), este README e o registro de progresso em `.claude/docs/`, que guarda as decisões e os erros de cada ticket.
+
+As decisões de produto e de arquitetura foram minhas: a IA propôs opções, e eu escolhi.
 
 ## Autor
 

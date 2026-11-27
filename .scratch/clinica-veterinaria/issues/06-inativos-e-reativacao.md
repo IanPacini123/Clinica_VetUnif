@@ -4,11 +4,11 @@
 
 **Blocked by:** 05 (CRUD de Animal)
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Filtro "mostrar inativos" nas listagens de Tutor e Animal, visível só para o ADMIN
-- [ ] Registros inativos aparecem visualmente diferentes dos ativos
-- [ ] Botão "reativar" em Tutor e Animal inativos, visível só para o ADMIN
-- [ ] API devolve 403 se outro Perfil tentar listar inativos ou reativar
-- [ ] Reativar um Animal cujo Tutor está inativo devolve 409 com mensagem clara
-- [ ] Funciona na URL publicada
+- [x] Filtro "mostrar inativos" nas listagens de Tutor e Animal, visível só para o ADMIN
+- [x] Registros inativos aparecem visualmente diferentes dos ativos
+- [x] Botão "reativar" em Tutor e Animal inativos, visível só para o ADMIN
+- [x] API devolve 403 se outro Perfil tentar listar inativos ou reativar
+- [x] Reativar um Animal cujo Tutor está inativo devolve 409 com mensagem clara
+- [x] Funciona na URL publicada

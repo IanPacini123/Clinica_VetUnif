@@ -1,7 +1,7 @@
 # Progresso da Implementação: Tickets 01 a 11
 
 ## Resumo
-Registro da implementação e da metodologia de trabalho. Tickets em `.scratch/clinica-veterinaria/issues/`. **Ticket 01** (esqueleto local), **02** (esqueleto publicado em `https://clinica-vetunif.onrender.com/`, com deploy automático por push) e **03** (login e sessão) foram concluídos em 2026-11-26. O **04** (CRUD de Tutor), o **05** (CRUD de Animal, com os animais no detalhe do Tutor) e o **06** (inativos e reativação, só para o ADMIN) foram concluídos em 2026-11-27. O **07** (gestão de Usuários, só ADMIN), o **08** (Chegada e Fila) e o **09** (Atendimento pelo VETERINARIO) foram concluídos e publicados em 2026-11-27. O **10** (Histórico do Animal) e o **11** (seed de demonstração e README) foram concluídos e publicados em 2026-11-27; antes do 11, o banco de produção foi zerado. Do 03 ao 11, tudo foi verificado na URL publicada; o status nos arquivos dos tickets é marcado pelo usuário. Próximo: PDF e entrega. As regras de negócio ficam em `docs/especificacao.md`; o deploy, no ADR 0004.
+Registro da implementação e da metodologia de trabalho. Tickets em `.scratch/clinica-veterinaria/issues/`. **Ticket 01** (esqueleto local), **02** (esqueleto publicado em `https://clinica-vetunif.onrender.com/`, com deploy automático por push) e **03** (login e sessão) foram concluídos em 2026-11-26. O **04** (CRUD de Tutor), o **05** (CRUD de Animal, com os animais no detalhe do Tutor) e o **06** (inativos e reativação, só para o ADMIN) foram concluídos em 2026-11-27. O **07** (gestão de Usuários, só ADMIN), o **08** (Chegada e Fila) e o **09** (Atendimento pelo VETERINARIO) foram concluídos e publicados em 2026-11-27. O **10** (Histórico do Animal) e o **11** (seed de demonstração e README) foram concluídos e publicados em 2026-11-27; antes do 11, o banco de produção foi zerado. Do 03 ao 11, tudo foi verificado na URL publicada; todos os tickets estão com status `done`. Próximo: PDF e entrega. As regras de negócio ficam em `docs/especificacao.md`; o deploy, no ADR 0004.
 
 ## Metodologia (modo professor, com ritmo ajustado)
 - **O usuário escreve todo o código da aplicação.** Claude guia, revisa e explica. Claude só executa limpeza, verificação (build, curl, inspecionar arquivos ou containers) e documentação quando o usuário pede ou quando é preciso para diagnosticar.
@@ -12,7 +12,7 @@ Registro da implementação e da metodologia de trabalho. Tickets em `.scratch/c
 - **Analogias com Java/Hibernate/Spring** funcionam bem.
 - **Commit ao fim de cada unidade**, sempre da raiz (`git add -A`), conferindo o `package-lock.json`. Prefixo `feature:` (escolha do usuário; não sugerir `feat:`). O usuário também usa `docs:` e `fix:`.
 - **O status do ticket é marcado pelo próprio usuário.**
-- **Por quê:** é trabalho de disciplina, e o README declara que o código não foi escrito por IA.
+- **Por quê:** é trabalho de disciplina. O README declara que todo o código foi escrito pelo usuário, com a IA guiando o desenvolvimento e o deploy (trechos de referência, revisão) e ajudando nos layouts das telas.
 
 ## Fatos Críticos (verbatim, nunca parafrasear)
 - **URL pública:** `https://clinica-vetunif.onrender.com/`
@@ -208,10 +208,7 @@ Registro da implementação e da metodologia de trabalho. Tickets em `.scratch/c
 - **Migration fora de ordem corrigida por rename** (`…103445` → `…133449`, o horário real da aplicação), com `UPDATE _prisma_migrations SET migration_name = ...` no Neon e no local **antes** do push: o conteúdo é o mesmo, então o checksum bate.
 
 ## Pendências / Em Aberto
-- **Status dos tickets 03 a 11**: o usuário marca nos arquivos dos tickets (hoje todos com `ready-for-agent`).
-- **Commit do README** (`docs: ticket 11`), junto com esta KB.
-- **Apagar a branch `antes-do-reset` no Neon** quando a demonstração estiver confirmada.
-- **Testar um clone limpo** com `docker compose up --build` num volume novo: o migrate e o seed num banco vazio foram testados, o compose completo não.
+- **Push do `docs: ticket 11`** e do commit da declaração de IA: o clone do GitHub em 2026-11-27 ainda estava em `b2277d0`.
 - **Dados de teste no banco local** (além da demonstração, criada pelo `seed:dev`): usuários `atend.teste` (ATENDENTE), `vet.teste` (VETERINARIO), `t07.vet` (id 5, VETERINARIO), `t07.atend` (id 7, ATENDENTE, senha trocada no teste), `t08.atend` (ATENDENTE), `t08.vet` (VETERINARIO), `t09.vet1`, `t09.vet2` e `t10.vet` (VETERINARIO); tutores 33 (`ian teste 123`) e 34 inativos, 35 e 37 ativos; animais 1 a 5, com o 2 (`Mimi`, do tutor 34) inativo; atendimentos 6 (`Rex II`, prioritário, FINALIZADO com peso, diagnóstico e conduta), 9 (`pepeu`, EM_ATENDIMENTO com o `t08.vet`, posto direto no SQL), 8 e 10 cancelados, 11 e 17 AGUARDANDO.
 - **Opcional no web**: avisar alterações não salvas ao sair da tela de Atendimento (hoje o que não foi salvo se perde; o painel de devolver avisa).
 - **Opcional na api**: um POST sem corpo responde `campos: { "": "Invalid input..." }`; as mensagens do `pagina` e do `inativos` inválidos saem em inglês (padrão do Zod).
@@ -229,7 +226,7 @@ Registro da implementação e da metodologia de trabalho. Tickets em `.scratch/c
   - reduzir a imagem (o `npm ci --omit=dev` instala o `vue`, que não é usado no runtime);
   - na `api()`, recusar um caminho que não começa com `/`;
   - limite máximo de senha: o bcrypt usa só os primeiros 72 bytes.
-- **Decidir se `.claude/docs/` fica no git**, dado o que o README declara sobre IA (hoje o arquivo está versionado).
+- **`.claude/docs/` fica no git** (decisão do usuário): a declaração de IA do README cita o arquivo.
 
 ## Armadilhas Conhecidas
 - **`-D` vale para o comando inteiro**; **flag com erro de digitação é ignorada só com um aviso** (`--saved-prod`). Confira o `package.json` depois de cada install; `npm install --save-prod <pkg>` move para dependencies.
@@ -282,4 +279,4 @@ Registro da implementação e da metodologia de trabalho. Tickets em `.scratch/c
 - **`| tail` depois do `migrate deploy` escondeu a falha**: a migration quebrada só apareceu sem o filtro. Confira o código de saída ou a mensagem `All migrations have been successfully applied.`
 
 ## Ultima Atualizacao
-2026-11-27 — Ticket 11 concluído e publicado: produção zerada, seed de demonstração, migration fora de ordem corrigida e README técnico.
+2026-11-27 — Tickets 02 a 11 marcados `done`; declaração de uso de IA detalhada no README; branch `antes-do-reset` apagada no Neon; clone limpo do GitHub testado com `docker compose up --build` (migrations, seed, health, login e Fila com 3 AGUARDANDO).
