@@ -279,7 +279,43 @@ export const atendimentoSchema = z.object({
     dataFim: z.iso.datetime().nullable(),
     animal: animalSchema,
     veterinario: z.object({ id: z.number(), nome: z.string() }).nullable(),
+    peso: z.number().nullable(),
+    anamnese: z.string().nullable(),
+    diagnostico: z.string().nullable(),
+    conduta: z.string().nullable(),
 })
 export type Atendimento = z.infer<typeof atendimentoSchema>
 
 export const filaSchema = z.array(atendimentoSchema)
+
+const textoOpcional = z.preprocess(vazioViraNull, z.string().nullable().optional())
+
+// Salvar: tudo opcional, para o VETERINARIO gravar e continuar depois.
+// O peso vem como número ou "" (input type="number" vazio).
+export const dadosClinicosSchema = z.object({
+    peso: z.preprocess(
+        vazioViraNull,
+        z.number({ error: 'Peso inválido.' })
+            .positive('O peso precisa ser maior que zero.')
+            .max(999.99, 'O peso máximo é 999,99 kg.')
+            .nullable()
+            .optional(),
+    ),
+    anamnese: textoOpcional,
+    diagnostico: textoOpcional,
+    conduta: textoOpcional,
+})
+export type DadosClinicos = z.infer<typeof dadosClinicosSchema>
+
+// Finalizar: os mesmos campos, com diagnóstico e conduta obrigatórios.
+export const finalizacaoSchema = dadosClinicosSchema.extend({
+    diagnostico: z.preprocess(
+        vazioViraNull,
+        z.string({ error: 'Informe o diagnóstico.' }),
+    ),
+    conduta: z.preprocess(
+        vazioViraNull,
+        z.string({ error: 'Informe a conduta.' }),
+    ),
+})
+export type Finalizacao = z.infer<typeof finalizacaoSchema>

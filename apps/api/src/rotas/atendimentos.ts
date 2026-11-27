@@ -2,10 +2,13 @@ import type { FastifyInstance } from 'fastify'
 import {
     camposDoErro,
     chegadaSchema,
+    dadosClinicosSchema,
+    finalizacaoSchema,
     idSchema,
     prioridadeQueixaSchema,
     STATUS_EM_ABERTO,
     type Atendimento,
+    type DadosClinicos,
 } from '@clinica/shared'
 import { Prisma } from '../generated/prisma/client.js'
 import { prisma } from '../db.js'
@@ -17,6 +20,13 @@ const NAO_ENCONTRADO = 'Atendimento não encontrado.'
 const ANIMAL_INVALIDO = 'O animal selecionado não existe ou está inativo.'
 const JA_NA_FILA = 'Este animal já tem um atendimento em aberto.'
 const SO_AGUARDANDO = 'Só é possível alterar um atendimento que está aguardando.'
+const JA_ENCERRADO = 'Este atendimento já foi encerrado.'
+const VETERINARIO_OCUPADO =
+    'Finalize ou devolva o atendimento atual antes de iniciar outro.'
+const JA_FINALIZADO = 'Atendimento finalizado não pode mais ser alterado.'
+const NAO_EM_ANDAMENTO = 'Este atendimento não está em andamento.'
+const SO_RESPONSAVEL =
+    'Só o veterinário responsável pode alterar este atendimento.'
 
 // O veterinário vem só com id e nome: o senhaHash nunca sai daqui.
 const comAnimalEVeterinario = {
@@ -49,6 +59,77 @@ function paraResposta(atendimento: AtendimentoDoBanco): Atendimento {
         dataFim: atendimento.dataFim?.toISOString() ?? null,
         animal: animalParaResposta(atendimento.animal),
         veterinario: atendimento.veterinario,
+        // O Prisma devolve o Decimal como objeto; o JSON leva número.
+        peso: atendimento.peso?.toNumber() ?? null,
+        anamnese: atendimento.anamnese,
+        diagnostico: atendimento.diagnostico,
+        conduta: atendimento.conduta,
+    }
+}
+
+function codigoDoPrisma(erro: unknown): string | null {
+    if (erro instanceof Prisma.PrismaClientKnownRequestError) return erro.code
+    return null
+}
+
+// Campo ausente vira null: Salvar e Finalizar gravam o formulário inteiro.
+function lerDadosClinicos(d: DadosClinicos) {
+    return {
+        peso: d.peso ?? null,
+        anamnese: d.anamnese ?? null,
+        diagnostico: d.diagnostico ?? null,
+        conduta: d.conduta ?? null,
+    }
+}
+
+// Para iniciar: 404 se não existe; 409 se outro VETERINARIO já pegou
+// o Paciente ou se o Atendimento foi encerrado.
+async function exigirNaFila(id: number) {
+    const atual = await prisma.atendimento.findUnique({
+        where: { id },
+        include: { veterinario: { select: { nome: true } } },
+    })
+    if (!atual) throw new ErroHttp(404, NAO_ENCONTRADO)
+    if (atual.status === 'EM_ATENDIMENTO' && atual.veterinario) {
+        const nome = atual.veterinario.nome
+        throw new ErroHttp(409, `Paciente já está em atendimento com Dr(a). ${nome}.`)
+    }
+    if (atual.status !== 'AGUARDANDO') throw new ErroHttp(409, JA_ENCERRADO)
+}
+
+// Para salvar, finalizar e devolver: só o VETERINARIO responsável,
+// e só enquanto está EM_ATENDIMENTO.
+async function exigirResponsavel(id: number, veterinarioId: number) {
+    const atual = await prisma.atendimento.findUnique({ where: { id } })
+    if (!atual) throw new ErroHttp(404, NAO_ENCONTRADO)
+    if (atual.status === 'FINALIZADO') throw new ErroHttp(409, JA_FINALIZADO)
+    if (atual.status !== 'EM_ATENDIMENTO') {
+        throw new ErroHttp(409, NAO_EM_ANDAMENTO)
+    }
+    if (atual.veterinarioId !== veterinarioId) {
+        throw new ErroHttp(403, SO_RESPONSAVEL)
+    }
+}
+
+// O where repete as condições do exigirResponsavel: se o Atendimento mudou
+// entre a leitura e a gravação (outra aba finalizou), o P2025 vira 409.
+async function gravarComoResponsavel(
+    id: number,
+    veterinarioId: number,
+    data: Prisma.AtendimentoUncheckedUpdateInput,
+): Promise<Atendimento> {
+    try {
+        const atendimento = await prisma.atendimento.update({
+            where: { id, status: 'EM_ATENDIMENTO', veterinarioId },
+            data,
+            include: comAnimalEVeterinario,
+        })
+        return paraResposta(atendimento)
+    } catch (erro) {
+        if (codigoDoPrisma(erro) === 'P2025') {
+            throw new ErroHttp(409, NAO_EM_ANDAMENTO)
+        }
+        throw erro
     }
 }
 
@@ -152,5 +233,72 @@ export async function rotasAtendimentos(app: FastifyInstance) {
         } catch (erro) {
             traduzirErroDoBanco(erro)
         }
+    })
+
+    const veterinario = { preHandler: exigirPerfil('VETERINARIO') }
+
+    // Pegar o Paciente: EM_ATENDIMENTO com quem pegou como responsável.
+    app.post('/api/atendimentos/:id/iniciar', veterinario, async (request): Promise<Atendimento> => {
+        const id = lerId(request.params)
+        await exigirNaFila(id)
+        try {
+            const atendimento = await prisma.atendimento.update({
+                where: { id, status: 'AGUARDANDO' },
+                data: {
+                    status: 'EM_ATENDIMENTO',
+                    veterinarioId: request.user.id,
+                    dataInicio: new Date(),
+                },
+                include: comAnimalEVeterinario,
+            })
+            return paraResposta(atendimento)
+        } catch (erro) {
+            // P2002: o índice parcial (1 EM_ATENDIMENTO por VETERINARIO).
+            if (codigoDoPrisma(erro) === 'P2002') {
+                throw new ErroHttp(409, VETERINARIO_OCUPADO)
+            }
+            // P2025: outro VETERINARIO pegou entre a leitura e a gravação;
+            // a nova leitura lança o 409 com o nome dele.
+            if (codigoDoPrisma(erro) === 'P2025') {
+                await exigirNaFila(id)
+                throw new ErroHttp(409, SO_AGUARDANDO)
+            }
+            throw erro
+        }
+    })
+
+    // Salvar sem finalizar: o VETERINARIO pode sair e continuar depois.
+    app.put('/api/atendimentos/:id/dados-clinicos', veterinario, async (request): Promise<Atendimento> => {
+        const id = lerId(request.params)
+        const r = dadosClinicosSchema.safeParse(request.body)
+        if (!r.success) throw camposInvalidos(r.error)
+
+        await exigirResponsavel(id, request.user.id)
+        return gravarComoResponsavel(id, request.user.id, lerDadosClinicos(r.data))
+    })
+
+    // Finalizar grava o formulário e conclui; FINALIZADO não muda mais.
+    app.post('/api/atendimentos/:id/finalizar', veterinario, async (request): Promise<Atendimento> => {
+        const id = lerId(request.params)
+        const r = finalizacaoSchema.safeParse(request.body)
+        if (!r.success) throw camposInvalidos(r.error)
+
+        await exigirResponsavel(id, request.user.id)
+        return gravarComoResponsavel(id, request.user.id, {
+            ...lerDadosClinicos(r.data),
+            status: 'FINALIZADO',
+            dataFim: new Date(),
+        })
+    })
+
+    // Devolver à Fila: só tira o responsável; os dados clínicos ficam.
+    app.post('/api/atendimentos/:id/devolver', veterinario, async (request): Promise<Atendimento> => {
+        const id = lerId(request.params)
+        await exigirResponsavel(id, request.user.id)
+        return gravarComoResponsavel(id, request.user.id, {
+            status: 'AGUARDANDO',
+            veterinarioId: null,
+            dataInicio: null,
+        })
     })
 }

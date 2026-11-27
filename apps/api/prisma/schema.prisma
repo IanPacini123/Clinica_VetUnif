@@ -107,5 +107,6 @@ model Atendimento {
 
     @@index([animalId])
     @@unique([animalId], where: raw("(status = ANY (ARRAY['AGUARDANDO'::status_atendimento, 'EM_ATENDIMENTO'::status_atendimento]))"))
+    @@unique([veterinarioId], where: raw("(status = 'EM_ATENDIMENTO'::status_atendimento)"))
     @@map("atendimento")
 }
