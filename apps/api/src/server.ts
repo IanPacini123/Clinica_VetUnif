@@ -15,6 +15,7 @@ import { autenticar } from './auth/guards.js';
 
 import { rotasTutores } from './rotas/tutores.js';
 import { rotasAnimais } from './rotas/animais.js';
+import { rotasUsuarios } from './rotas/usuarios.js';
 
 const ENV_PORT = process.env.PORT
 
@@ -83,6 +84,7 @@ await fastify.register(fastifyJwt, { secret: JWT_SECRET, sign: { expiresIn: '8h'
 await fastify.register(rotasAuth)
 await fastify.register(rotasTutores)
 await fastify.register(rotasAnimais)
+await fastify.register(rotasUsuarios)
 
 if (servirWeb) {
     await fastify.register(fastifyStatic, { root: WEB_DIST })

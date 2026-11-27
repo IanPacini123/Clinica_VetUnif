@@ -169,3 +169,62 @@ export const listaAnimaisSchema = z.object({
 export type ListaAnimais = z.infer<typeof listaAnimaisSchema>
 
 export const animaisSchema = z.array(animalSchema)
+
+// ---- Usuário ----
+
+const senhaSchema = z.string({ error: 'Informe a senha.' })
+    .min(8, 'A senha precisa ter pelo menos 8 caracteres.')
+
+const usuarioCampos = z.object({
+    nome: z.string({ error: 'Informe o nome.' })
+        .trim()
+        .min(3, 'O nome precisa ter pelo menos 3 caracteres.'),
+    perfil: z.enum(perfilSchema.options, { error: 'Selecione o perfil.' }),
+    crmv: z.preprocess(vazioViraNull, z.string().nullable().optional()),
+})
+
+type CamposCrmv = { perfil: Perfil; crmv?: string | null | undefined }
+const temCrmvSeVeterinario = (d: CamposCrmv) =>
+    d.perfil !== 'VETERINARIO' || !!d.crmv
+const ERRO_CRMV = {
+    message: 'Informe o CRMV do veterinário.',
+    path: ['crmv'],
+}
+
+// Edição: o nome de usuário fica de fora, porque não muda.
+export const usuarioEdicaoSchema = usuarioCampos
+    .refine(temCrmvSeVeterinario, ERRO_CRMV)
+export type UsuarioEdicao = z.infer<typeof usuarioEdicaoSchema>
+
+export const usuarioEntradaSchema = usuarioCampos
+    .extend({
+        nomeUsuario: z.string({ error: 'Informe o nome de usuário.' })
+            .trim()
+            .min(3, 'O nome de usuário precisa ter de 3 a 30 caracteres.')
+            .max(30, 'O nome de usuário precisa ter de 3 a 30 caracteres.')
+            .regex(/^[a-z0-9.]+$/, 'Use só letras minúsculas, números e ponto.'),
+        senha: senhaSchema,
+    })
+    .refine(temCrmvSeVeterinario, ERRO_CRMV)
+export type UsuarioEntrada = z.infer<typeof usuarioEntradaSchema>
+
+export const novaSenhaSchema = z.object({ senha: senhaSchema })
+export type NovaSenha = z.infer<typeof novaSenhaSchema>
+
+export const usuarioSchema = z.object({
+    id: z.number(),
+    nome: z.string(),
+    nomeUsuario: z.string(),
+    perfil: perfilSchema,
+    crmv: z.string().nullable(),
+    ativo: z.boolean(),
+})
+export type Usuario = z.infer<typeof usuarioSchema>
+
+export const listaUsuariosSchema = z.object({
+    itens: z.array(usuarioSchema),
+    total: z.number(),
+    pagina: z.number(),
+    porPagina: z.number(),
+})
+export type ListaUsuarios = z.infer<typeof listaUsuariosSchema>
