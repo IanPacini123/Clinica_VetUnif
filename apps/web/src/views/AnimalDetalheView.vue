@@ -7,6 +7,7 @@ import { formatarData, formatarTelefone, NOME_ESPECIE, NOME_SEXO } from '../form
 import { podeAcessar } from '../sessao/session'
 import { PODE_CRIAR_E_INATIVAR, PODE_VER_INATIVOS } from '../perfis'
 import SeloInativo from '../components/SeloInativo.vue'
+import HistoricoAnimal from '../components/HistoricoAnimal.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -190,6 +191,11 @@ async function reativar() {
                     Editar
                 </RouterLink>
             </div>
+
+            <section class="space-y-2 pt-2">
+                <h2 class="text-lg font-semibold">Histórico</h2>
+                <HistoricoAnimal :animal-id="animal.id" />
+            </section>
         </template>
     </section>
 </template>

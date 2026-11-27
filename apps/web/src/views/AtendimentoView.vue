@@ -18,6 +18,7 @@ import {
 } from '../formatos'
 import { usuario } from '../sessao/session'
 import CampoAreaTexto from '../components/CampoAreaTexto.vue'
+import HistoricoAnimal from '../components/HistoricoAnimal.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -245,6 +246,17 @@ async function devolver() {
                     <dd class="break-words">{{ atendimento.queixa ?? '—' }}</dd>
                 </div>
             </dl>
+
+            <!-- Fechado por padrão: abre sem sair da tela nem perder o formulário -->
+            <details class="rounded-lg border bg-gray-50 p-4">
+                <summary class="cursor-pointer font-semibold">Histórico do animal</summary>
+                <div class="mt-3">
+                    <HistoricoAnimal
+                        :animal-id="atendimento.animal.id"
+                        :ocultar-id="atendimento.id"
+                    />
+                </div>
+            </details>
 
             <!-- Formulário do VETERINARIO responsável -->
             <template v-if="editavel">
