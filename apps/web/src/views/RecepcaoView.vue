@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, reactive, ref } from 'vue'
+import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import {
     atendimentoSchema,
     camposDoErro,
@@ -10,7 +11,9 @@ import {
 import { api, ErroApi } from '../api'
 import { formatarHora, NOME_ESPECIE } from '../formatos'
 import { podeAcessar, usuario } from '../sessao/session'
-import { PODE_REGISTRAR_CHEGADA } from '../perfis'
+import { PODE_ATENDER, PODE_REGISTRAR_CHEGADA } from '../perfis'
+
+const router = useRouter()
 
 // A Fila atualiza sozinha (polling, sem WebSocket) e pelo botão.
 const INTERVALO_MS = 10_000
@@ -29,6 +32,15 @@ const errosEdicao = ref<Record<string, string>>({})
 const cancelandoId = ref<number | null>(null)
 const enviando = ref(false)
 const erroAcao = ref<string | null>(null)
+
+// O Atendimento que o VETERINARIO logado pegou e ainda não terminou.
+const meuAtendimento = computed(() => {
+    return fila.value.find((a) =>
+        a.status === 'EM_ATENDIMENTO' && a.veterinario?.id === usuario.value?.id,
+    ) ?? null
+})
+const iniciandoId = ref<number | null>(null)
+const erroInicio = ref<{ id: number, mensagem: string } | null>(null)
 
 function mensagemDe(e: unknown): string {
     console.error(e)
@@ -117,6 +129,24 @@ async function salvarEdicao() {
     }
 }
 
+// Pegar o Paciente: com sucesso, vai para a tela de Atendimento.
+// O 409 (outro VETERINARIO pegou antes) aparece no card.
+async function iniciar(atendimento: Atendimento) {
+    erroInicio.value = null
+    iniciandoId.value = atendimento.id
+    try {
+        await api(`/api/atendimentos/${atendimento.id}/iniciar`, atendimentoSchema, {
+            method: 'POST',
+        })
+        await router.push({ name: 'atendimento', params: { id: atendimento.id } })
+    } catch (e) {
+        erroInicio.value = { id: atendimento.id, mensagem: mensagemDe(e) }
+        await carregar()
+    } finally {
+        iniciandoId.value = null
+    }
+}
+
 async function confirmarCancelamento() {
     erroAcao.value = null
     enviando.value = true
@@ -147,6 +177,22 @@ async function confirmarCancelamento() {
                 class="rounded bg-blue-700 px-4 py-2 font-semibold text-white"
             >
                 Registrar chegada
+            </RouterLink>
+        </div>
+
+        <div
+            v-if="meuAtendimento"
+            class="flex flex-col gap-3 rounded-lg border border-green-300 bg-green-50 p-4 sm:flex-row sm:items-center sm:justify-between"
+        >
+            <p>
+                Você está atendendo <strong>{{ meuAtendimento.animal.nome }}</strong>.
+                Finalize ou devolva à fila antes de pegar outro paciente.
+            </p>
+            <RouterLink
+                :to="{ name: 'atendimento', params: { id: meuAtendimento.id } }"
+                class="shrink-0 rounded bg-green-700 px-4 py-2 text-center font-semibold text-white"
+            >
+                Continuar atendimento
             </RouterLink>
         </div>
 
@@ -328,6 +374,28 @@ async function confirmarCancelamento() {
                         Editar prioridade e queixa
                     </button>
                 </div>
+
+                <!-- VETERINARIO pega o Paciente; com um em andamento, o atalho fica no topo -->
+                <div
+                    v-else-if="atendimento.status === 'AGUARDANDO' && podeAcessar(PODE_ATENDER) && !meuAtendimento"
+                    class="flex flex-col items-stretch gap-2 sm:items-end"
+                >
+                    <button
+                        :disabled="iniciandoId !== null"
+                        class="rounded bg-blue-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+                        @click="iniciar(atendimento)"
+                    >
+                        {{ iniciandoId === atendimento.id ? 'Iniciando...' : 'Atender' }}
+                    </button>
+                </div>
+
+                <p
+                    v-if="erroInicio?.id === atendimento.id"
+                    role="alert"
+                    class="text-sm text-red-700 sm:text-right"
+                >
+                    {{ erroInicio.mensagem }}
+                </p>
             </li>
         </ul>
     </section>

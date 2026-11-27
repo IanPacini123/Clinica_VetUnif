@@ -17,3 +17,7 @@ export const PODE_GERIR_USUARIOS: Perfil[] = ['ADMIN']
 // Registrar Chegada, editar Prioridade e Queixa e cancelar.
 // A api confere o mesmo em rotasAtendimentos.
 export const PODE_REGISTRAR_CHEGADA: Perfil[] = ['ADMIN', 'ATENDENTE']
+
+// Pegar o Paciente e preencher o Atendimento.
+// A api confere o mesmo em rotasAtendimentos.
+export const PODE_ATENDER: Perfil[] = ['VETERINARIO']
