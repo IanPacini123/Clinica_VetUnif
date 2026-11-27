@@ -109,6 +109,10 @@ export async function rotasTutores(app: FastifyInstance) {
 
     app.delete('/api/tutores/:id', podeCriarEInativar, async (request, reply) => {
         const id = lerId(request.params)
+        const animaisAtivos = await prisma.animal.count({ where: { tutorId: id, ativo: true } })
+        if (animaisAtivos > 0) {
+            throw new ErroHttp(409, 'Este tutor tem animais ativos. Inative os animais primeiro.')
+        }
         try {
             await prisma.tutor.update({
                 where: { id, ativo: true },

@@ -19,13 +19,40 @@ model Tutor {
     telefone    String
     email       String?
     ativo       Boolean @default(true)
+    animais     Animal[]
 
     @@map("tutor")
 }
 
-model Animal {
-    id  Int @id @default(autoincrement())
+enum Especie {
+    CACHORRO
+    GATO
+    AVE
+    ROEDOR
+    OUTRO
 
+    @@map("especie")
+}
+
+enum Sexo {
+    MACHO
+    FEMEA
+
+    @@map("sexo")
+}
+
+model Animal {
+    id              Int @id @default(autoincrement())
+    nome            String
+    especie         Especie
+    raca            String?
+    sexo            Sexo
+    dataNascimento  DateTime? @db.Date @map("data_nascimento")
+    tutorId         Int @map("tutor_id")
+    tutor           Tutor @relation(fields: [tutorId], references: [id])
+    ativo           Boolean @default(true)
+
+    @@index([tutorId])
     @@map("animal")
 }
 
