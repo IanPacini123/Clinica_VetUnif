@@ -13,6 +13,11 @@ const id = computed(() => {
     return typeof route.params.id === 'string' ? Number(route.params.id) : null
 })
 
+const voltarPara = computed(() => {
+    if (id.value === null) return { name: 'tutores' }
+    return { name: 'tutor-detalhe', params: { id: id.value } }
+})
+
 const form = reactive({ nome: '', cpf: '', telefone: '', email: '' })
 const erros = ref<Record<string, string>>({})
 const erroGeral = ref<string | null>(null)
@@ -64,11 +69,11 @@ async function salvar() {
     enviando.value = true
     try {
         const caminho = id.value === null ? '/api/tutores' : `/api/tutores/${id.value}`
-        await api(caminho, tutorSchema, {
+        const salvo = await api(caminho, tutorSchema, {
             method: id.value === null ? 'POST' : 'PUT',
             body: JSON.stringify(dados.data),
         })
-        await router.push({ name: 'tutores' })
+        await router.push({ name: 'tutor-detalhe', params: { id: salvo.id } })
     } catch (e) {
         mostrarErro(e)
     } finally {
@@ -115,7 +120,7 @@ async function salvar() {
 
             <div class="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
                 <RouterLink
-                    :to="{ name: 'tutores' }"
+                    :to="voltarPara"
                     class="rounded border px-4 py-2 text-center hover:bg-gray-100"
                 >
                     Cancelar

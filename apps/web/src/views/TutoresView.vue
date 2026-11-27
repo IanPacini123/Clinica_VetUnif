@@ -103,7 +103,14 @@ function irParaPagina(pagina: number) {
                     </thead>
                     <tbody>
                         <tr v-for="tutor in lista.itens" :key="tutor.id" class="border-t">
-                            <td class="px-4 py-2 font-medium">{{ tutor.nome }}</td>
+                            <td class="px-4 py-2 font-medium">
+                                <RouterLink
+                                    :to="{ name: 'tutor-detalhe', params: { id: tutor.id } }"
+                                    class="text-blue-700 hover:underline"
+                                >
+                                    {{ tutor.nome }}
+                                </RouterLink>
+                            </td>
                             <td class="whitespace-nowrap px-4 py-2">
                                 {{ formatarCpf(tutor.cpf) }}
                             </td>

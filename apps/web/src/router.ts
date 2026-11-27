@@ -31,6 +31,11 @@ const outrasTelas: RouteRecordRaw[] = [
         name: 'tutor-editar',
         component: () => import('./views/TutorFormView.vue'),
     },
+    {
+        path: '/tutores/:id',
+        name: 'tutor-detalhe',
+        component: () => import('./views/TutorDetalheView.vue'),
+    },
 ]
 
 export const router = createRouter({

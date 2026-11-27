@@ -14,6 +14,8 @@ export class ErroApi extends Error {
 
 type Validador<T> = { parse(dados: unknown): T }
 
+export const SEM_CONTEUDO: Validador<void> = { parse: () => undefined }
+
 export async function api<T>(caminho: string, schema: Validador<T>, opcoes: RequestInit = {}): Promise<T> {
     const headers = new Headers(opcoes.headers)
     if ( token.value ) headers.set( `Authorization`, `Bearer ${token.value}` )
