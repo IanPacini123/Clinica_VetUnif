@@ -5,6 +5,7 @@ import {
     camposDoErro,
     idSchema,
     POR_PAGINA,
+    STATUS_EM_ABERTO,
     type Animal,
     type AnimalEntrada,
     type ListaAnimais,
@@ -17,6 +18,8 @@ import { exigirPerfil, podeVerInativos, SEM_PERMISSAO } from '../auth/guards.js'
 const NAO_ENCONTRADO = 'Animal não encontrado.'
 const TUTOR_INVALIDO = 'O tutor selecionado não existe ou está inativo.'
 const TUTOR_DO_ANIMAL_INATIVO = 'O tutor deste animal está inativo. Reative o tutor primeiro.'
+const ATENDIMENTO_EM_ABERTO =
+    'Este animal tem um atendimento em aberto. Finalize ou cancele o atendimento primeiro.'
 
 type DadosAnimal = Omit<AnimalEntrada, 'raca' | 'dataNascimento'> & {
     raca: string | null
@@ -24,7 +27,7 @@ type DadosAnimal = Omit<AnimalEntrada, 'raca' | 'dataNascimento'> & {
 }
 
 // O tutor vem junto em toda resposta: a lista e o detalhe mostram o nome dele.
-const comTutor = { tutor: true } satisfies Prisma.AnimalInclude
+export const comTutor = { tutor: true } satisfies Prisma.AnimalInclude
 type AnimalDoBanco = Prisma.AnimalGetPayload<{ include: typeof comTutor }>
 
 function lerId(params: unknown): number {
@@ -48,7 +51,7 @@ function lerAnimal(body: unknown): DadosAnimal {
 }
 
 // O @db.Date volta como Date; a API responde só "AAAA-MM-DD".
-function paraResposta(animal: AnimalDoBanco): Animal {
+export function paraResposta(animal: AnimalDoBanco): Animal {
     return {
         id: animal.id,
         nome: animal.nome,
@@ -160,6 +163,11 @@ export async function rotasAnimais(app: FastifyInstance) {
 
     app.delete('/api/animais/:id', podeCriarEInativar, async (request, reply) => {
         const id = lerId(request.params)
+        // Como no Tutor: conta antes, para distinguir o 409 do 404.
+        const emAberto = await prisma.atendimento.count({
+            where: { animalId: id, status: { in: STATUS_EM_ABERTO } },
+        })
+        if (emAberto > 0) throw new ErroHttp(409, ATENDIMENTO_EM_ABERTO)
         try {
             await prisma.animal.update({
                 where: { id, ativo: true },

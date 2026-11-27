@@ -228,3 +228,58 @@ export const listaUsuariosSchema = z.object({
     porPagina: z.number(),
 })
 export type ListaUsuarios = z.infer<typeof listaUsuariosSchema>
+
+// ---- Atendimento ----
+
+export const statusAtendimentoSchema = z.enum([
+    'AGUARDANDO',
+    'EM_ATENDIMENTO',
+    'FINALIZADO',
+    'CANCELADO',
+])
+export type StatusAtendimento = z.infer<typeof statusAtendimentoSchema>
+
+// Em aberto = na Fila. Um Animal tem no máximo um (índice parcial no banco).
+export const STATUS_EM_ABERTO: StatusAtendimento[] = ['AGUARDANDO', 'EM_ATENDIMENTO']
+
+// Base sem o refine, para o .extend da Chegada (ver usuarioCampos).
+const prioridadeQueixaCampos = z.object({
+    prioridade: z.boolean().default(false),
+    queixa: z.preprocess(vazioViraNull, z.string().nullable().optional()),
+})
+
+type CamposQueixa = { prioridade: boolean; queixa?: string | null | undefined }
+const temQueixaSePrioridade = (d: CamposQueixa) => !d.prioridade || !!d.queixa
+const ERRO_QUEIXA = {
+    message: 'Informe a queixa do paciente prioritário.',
+    path: ['queixa'],
+}
+
+// Edição enquanto o Atendimento está AGUARDANDO.
+export const prioridadeQueixaSchema = prioridadeQueixaCampos
+    .refine(temQueixaSePrioridade, ERRO_QUEIXA)
+export type PrioridadeQueixa = z.infer<typeof prioridadeQueixaSchema>
+
+export const chegadaSchema = prioridadeQueixaCampos
+    .extend({
+        animalId: z.number({ error: 'Selecione o animal.' })
+            .int()
+            .positive('Selecione o animal.'),
+    })
+    .refine(temQueixaSePrioridade, ERRO_QUEIXA)
+export type Chegada = z.infer<typeof chegadaSchema>
+
+export const atendimentoSchema = z.object({
+    id: z.number(),
+    status: statusAtendimentoSchema,
+    prioridade: z.boolean(),
+    queixa: z.string().nullable(),
+    dataChegada: z.iso.datetime(),
+    dataInicio: z.iso.datetime().nullable(),
+    dataFim: z.iso.datetime().nullable(),
+    animal: animalSchema,
+    veterinario: z.object({ id: z.number(), nome: z.string() }).nullable(),
+})
+export type Atendimento = z.infer<typeof atendimentoSchema>
+
+export const filaSchema = z.array(atendimentoSchema)

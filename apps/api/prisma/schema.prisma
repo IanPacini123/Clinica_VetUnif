@@ -4,8 +4,9 @@
 // Get a free hosted Postgres database in seconds: `npx create-db`
 
 generator client {
-  provider = "prisma-client"
-  output   = "../src/generated/prisma"
+  provider        = "prisma-client"
+  output          = "../src/generated/prisma"
+  previewFeatures = ["partialIndexes"]
 }
 
 datasource db {
@@ -51,6 +52,7 @@ model Animal {
     tutorId         Int @map("tutor_id")
     tutor           Tutor @relation(fields: [tutorId], references: [id])
     ativo           Boolean @default(true)
+    atendimentos    Atendimento[]
 
     @@index([tutorId])
     @@map("animal")
@@ -72,6 +74,38 @@ model Usuario {
     perfil  Perfil
     crmv    String?
     ativo   Boolean @default(true)
+    atendimentos    Atendimento[]
 
     @@map("usuario")
+}
+
+enum StatusAtendimento {
+    AGUARDANDO
+    EM_ATENDIMENTO
+    FINALIZADO
+    CANCELADO
+
+    @@map("status_atendimento")
+}
+
+model Atendimento {
+    id              Int @id @default(autoincrement())
+    animalId        Int @map("animal_id")
+    animal          Animal @relation(fields: [animalId], references: [id])
+    veterinarioId   Int? @map("veterinario_id")
+    veterinario     Usuario? @relation(fields: [veterinarioId], references: [id], onDelete: Restrict)
+    status          StatusAtendimento @default(AGUARDANDO)
+    prioridade      Boolean @default(false)
+    queixa          String?
+    dataChegada     DateTime @default(now()) @map("data_chegada")
+    dataInicio      DateTime? @map("data_inicio")
+    dataFim         DateTime? @map("data_fim")
+    peso            Decimal? @db.Decimal(5, 2)
+    anamnese        String?
+    diagnostico     String?
+    conduta         String?
+
+    @@index([animalId])
+    @@unique([animalId], where: raw("(status = ANY (ARRAY['AGUARDANDO'::status_atendimento, 'EM_ATENDIMENTO'::status_atendimento]))"))
+    @@map("atendimento")
 }
