@@ -1,7 +1,7 @@
-# Progresso da Implementação: Tickets 01 a 04
+# Progresso da Implementação: Tickets 01 a 05
 
 ## Resumo
-Registro da implementação e da metodologia de trabalho. Tickets em `.scratch/clinica-veterinaria/issues/`. **Ticket 01** (esqueleto local), **02** (esqueleto publicado em `https://clinica-vetunif.onrender.com/`, com deploy automático por push) e **03** (login e sessão) foram concluídos em 2026-11-26. O **04** (CRUD de Tutor) foi concluído em 2026-11-27. O 03 e o 04 foram verificados na URL publicada; o status nos arquivos dos tickets é marcado pelo usuário. Próximo: ticket 05 (CRUD de Animal), ainda sem início por decisão do usuário. As regras de negócio ficam em `docs/especificacao.md`; o deploy, no ADR 0004.
+Registro da implementação e da metodologia de trabalho. Tickets em `.scratch/clinica-veterinaria/issues/`. **Ticket 01** (esqueleto local), **02** (esqueleto publicado em `https://clinica-vetunif.onrender.com/`, com deploy automático por push) e **03** (login e sessão) foram concluídos em 2026-11-26. O **04** (CRUD de Tutor) e o **05** (CRUD de Animal, com os animais no detalhe do Tutor) foram concluídos em 2026-11-27. Do 03 ao 05, tudo foi verificado na URL publicada; o status nos arquivos dos tickets é marcado pelo usuário. Próximo: ticket 06 (inativos e reativação). As regras de negócio ficam em `docs/especificacao.md`; o deploy, no ADR 0004.
 
 ## Metodologia (modo professor, com ritmo ajustado)
 - **O usuário escreve todo o código da aplicação.** Claude guia, revisa e explica. Claude só executa limpeza, verificação (build, curl, inspecionar arquivos ou containers) e documentação quando o usuário pede ou quando é preciso para diagnosticar.
@@ -40,10 +40,14 @@ Registro da implementação e da metodologia de trabalho. Tickets em `.scratch/c
 - **apps/api/.env:** `DATABASE_URL=postgresql://vetunif:<senha>@localhost:5435/vetunif` · `JWT_SECRET=...` · `ADMIN_SENHA=...`
 - **DATABASE_URL no compose:** `postgresql://${POSTGRES_USER:-vetunif}:${POSTGRES_PASSWORD:-vetunif}@db:5432/${POSTGRES_DB:-vetunif}`
 - **Proxy do Vite:** `'/api': process.env.API_URL ?? 'http://localhost:3000'` · no compose, `API_URL: http://api:3000` e `--host 0.0.0.0`
-- **Ordem no `server.ts`:** `Fastify()` → `setErrorHandler` → `setNotFoundHandler` → `addHook('onRequest', autenticar)` → `register(fastifyJwt, { secret, sign: { expiresIn: '8h' } })` → `register(rotasAuth)` → `register(rotasTutores)` → `register(fastifyStatic)` (se `servirWeb`) → `start()`
+- **Ordem no `server.ts`:** `Fastify()` → `setErrorHandler` → `setNotFoundHandler` → `addHook('onRequest', autenticar)` → `register(fastifyJwt, { secret, sign: { expiresIn: '8h' } })` → `register(rotasAuth)` → `register(rotasTutores)` → `register(rotasAnimais)` → `register(fastifyStatic)` (se `servirWeb`) → `start()`
 - **Rotas da api:** `GET /api/health` (pública) · `POST /api/login` (pública) · `GET /api/sessao` (devolve `{ id, nome, nomeUsuario, perfil }` do token)
 - **Rotas de Tutor (`apps/api/src/rotas/tutores.ts`, `rotasTutores`):** `GET /api/tutores?busca=&pagina=` → `{ itens, total, pagina, porPagina }` (só ativos) · `GET /api/tutores/:id` · `POST /api/tutores` (ADMIN/ATENDENTE) → 201 · `PUT /api/tutores/:id` (todos) · `DELETE /api/tutores/:id` (ADMIN/ATENDENTE) → 204, inativa
-- **Mensagens de Tutor:** 400 `Verifique os campos destacados.` + `campos` · 400 `Id inválido.` · 400 `Parâmetros de busca inválidos.` · 404 `Tutor não encontrado.` (inexistente ou inativo) · 409 `Já existe um tutor cadastrado com este CPF.` com `campos.cpf`
+- **Mensagens de Tutor:** 400 `Verifique os campos destacados.` + `campos` · 400 `Id inválido.` · 400 `Parâmetros de busca inválidos.` · 404 `Tutor não encontrado.` (inexistente ou inativo) · 409 `Já existe um tutor cadastrado com este CPF.` com `campos.cpf` · 409 `Este tutor tem animais ativos. Inative os animais primeiro.` (no DELETE)
+- **Rotas de Animal (`apps/api/src/rotas/animais.ts`, `rotasAnimais`):** `GET /api/animais?busca=&pagina=` (só ativos; busca pelo nome do animal ou do tutor) · `GET /api/animais/:id` · `GET /api/tutores/:id/animais` (ativos, sem paginação; 404 se o tutor estiver inativo) · `POST /api/animais` (ADMIN/ATENDENTE) → 201 · `PUT /api/animais/:id` (todos; pode trocar o tutor) · `DELETE /api/animais/:id` (ADMIN/ATENDENTE) → 204, inativa
+- **Mensagens de Animal:** 404 `Animal não encontrado.` · 409 `O tutor selecionado não existe ou está inativo.` com `campos.tutorId` · o resto igual ao Tutor
+- **Helpers de `animais.ts`:** `lerAnimal` → `DadosAnimal` (`raca: string | null`, `dataNascimento: Date | null`) · `paraResposta` (a data sai como `AAAA-MM-DD`) · `exigirTutorAtivo` · `comTutor = { tutor: true } satisfies Prisma.AnimalInclude` · `traduzirErroDoBanco` (`P2025` → 404)
+- **Resposta do Animal:** `{ id, nome, especie, raca, sexo, dataNascimento, ativo, tutor: Tutor }`
 - **Helpers de `tutores.ts`:** `lerId` · `lerTutor` → `DadosTutor = Omit<TutorEntrada, 'email'> & { email: string | null }` · `traduzirErroDoBanco` (`P2002` → 409, `P2025` → 404) · `podeCriarEInativar = { preHandler: exigirPerfil('ADMIN', 'ATENDENTE') }`
 - **CPF válido para teste:** `529.982.247-25`
 - **Login:** 400 `Informe usuário e senha.` · 401 `Usuário ou senha inválidos.` (usuário inexistente ou senha errada) · 403 `Usuário foi inativado. Procure o administrador.` · 200 `{ token, usuario }`
@@ -52,17 +56,19 @@ Registro da implementação e da metodologia de trabalho. Tickets em `.scratch/c
 - **Payload do JWT:** `id`, `nome`, `nomeUsuario`, `perfil`, `iat`, `exp` (`exp - iat = 28800`)
 - **Rota de saúde:** 200 `{"status":"healthy","dbConnection":"healthy"}` · com o db fora, 503 `{"mensagem":"Falha na conexão com o banco de dados."}`
 - **Erros da api:** `{ mensagem, campos? }` · `ErroHttp(statusCode, mensagem, campos?)` em `apps/api/src/models/erros.ts` (campo `readonly campos?: Record<string, string> | undefined`) · o handler responde `{ mensagem, campos }` · 404 `{"mensagem":"Rota não encontrada."}`
-- **Shared:** `saudeSchema`, `erroSchema`, `perfilSchema`, `loginSchema` (só não vazio), `usuarioSessaoSchema`, `respostaLoginSchema`, `tutorEntradaSchema`, `tutorSchema`, `buscaSchema` (`busca?`, `pagina` com `z.coerce` e `default(1)`), `POR_PAGINA = 20`, `listaTutoresSchema`, `idSchema`, `camposDoErro(erro)` (primeira mensagem por campo) + tipos `Saude`, `Erro`, `Perfil`, `Login`, `UsuarioSessao`, `RespostaLogin`, `TutorEntrada`, `Tutor`, `Busca`, `ListaTutores` · `exports` com `types: ./dist/index.d.ts`, `default: ./dist/index.js`
+- **Shared:** `saudeSchema`, `erroSchema`, `perfilSchema`, `loginSchema` (só não vazio), `usuarioSessaoSchema`, `respostaLoginSchema`, `tutorEntradaSchema`, `tutorSchema`, `buscaSchema` (`busca?`, `pagina` com `z.coerce` e `default(1)`), `POR_PAGINA = 20`, `listaTutoresSchema`, `idSchema`, `camposDoErro(erro)` (primeira mensagem por campo), `especieSchema`, `sexoSchema`, `hojeLocal()`, `animalEntradaSchema`, `animalSchema`, `listaAnimaisSchema`, `animaisSchema` + tipos `Saude`, `Erro`, `Perfil`, `Login`, `UsuarioSessao`, `RespostaLogin`, `TutorEntrada`, `Tutor`, `Busca`, `ListaTutores`, `Especie`, `Sexo`, `AnimalEntrada`, `Animal`, `ListaAnimais` · `exports` com `types: ./dist/index.d.ts`, `default: ./dist/index.js`
 - **Regras do `tutorEntradaSchema`:** nome `trim` ≥ 3 · CPF `soDigitos` → `cpfValido` (dígitos verificadores; rejeita repetidos) · telefone `soDigitos`, 10 a 11 dígitos · e-mail via `preprocess` (`""` → `null`), `z.email().nullable().optional()`
-- **Web:** `src/sessao/session.ts` (`token`, `usuario`, `salvarSessao`, `encerrarSessao`, `podeAcessar`; localStorage chave `token`) · `src/api.ts` (`api(caminho, schema, opcoes)`, `ErroApi` com `status` e `campos`, `SEM_CONTEUDO` para o 204) · `src/router.ts` (`telas`, `outrasTelas`, `router`, `RouteMeta { publica, titulo, perfis }`) · `src/perfis.ts` (`NOME_PERFIL`, `PODE_CRIAR_E_INATIVAR`) · `src/formatos.ts` (`formatarCpf`, `formatarTelefone`) · `src/components/` (`AppLayout`, `CampoTexto`) · `src/views/` (`LoginView`, `RecepcaoView`, `TutoresView`, `TutorFormView`, `TutorDetalheView`, `AnimaisView`, `UsuariosView`)
-- **Rotas do web:** `/login` (pública, fora do layout) · filhas do layout: `/` (`recepcao`), `/tutores`, `/animais`, `/usuarios` (`perfis: ['ADMIN']`) · fora do menu (`outrasTelas`): `/tutores/novo` (`tutor-novo`, `perfis: PODE_CRIAR_E_INATIVAR`), `/tutores/:id/editar` (`tutor-editar`), `/tutores/:id` (`tutor-detalhe`) · `/:caminho(.*)*` → `/`
+- **Regras do `animalEntradaSchema`:** nome `trim` não vazio · `especie` em `CACHORRO`, `GATO`, `AVE`, `ROEDOR`, `OUTRO` · `raca` opcional (`""` → `null`) · `sexo` em `MACHO`, `FEMEA` · `dataNascimento` opcional, `z.iso.date()` e `<= hojeLocal()` · `tutorId` número inteiro positivo (`null` → `Selecione o tutor.`)
+- **Web:** `src/sessao/session.ts` (`token`, `usuario`, `salvarSessao`, `encerrarSessao`, `podeAcessar`; localStorage chave `token`) · `src/api.ts` (`api(caminho, schema, opcoes)`, `ErroApi` com `status` e `campos`, `SEM_CONTEUDO` para o 204) · `src/router.ts` (`telas`, `outrasTelas`, `router`, `RouteMeta { publica, titulo, perfis }`) · `src/perfis.ts` (`NOME_PERFIL`, `PODE_CRIAR_E_INATIVAR`) · `src/formatos.ts` (`formatarCpf`, `formatarTelefone`, `NOME_ESPECIE`, `NOME_SEXO`, `formatarData`) · `src/components/` (`AppLayout`, `CampoTexto`, `CampoSelecao` com `opcoes: Record<string, string>`, `SeletorTutor` com `v-model` de `Tutor | null`) · `src/views/` (`LoginView`, `RecepcaoView`, `TutoresView`, `TutorFormView`, `TutorDetalheView`, `AnimaisView`, `AnimalFormView`, `AnimalDetalheView`, `UsuariosView`)
+- **Rotas do web:** `/login` (pública, fora do layout) · filhas do layout: `/` (`recepcao`), `/tutores`, `/animais`, `/usuarios` (`perfis: ['ADMIN']`) · fora do menu (`outrasTelas`): `/tutores/novo` (`tutor-novo`, `perfis: PODE_CRIAR_E_INATIVAR`), `/tutores/:id/editar` (`tutor-editar`), `/tutores/:id` (`tutor-detalhe`), `/animais/novo` (`animal-novo`, `perfis: PODE_CRIAR_E_INATIVAR`, aceita `?tutor=ID`), `/animais/:id/editar` (`animal-editar`), `/animais/:id` (`animal-detalhe`) · `/:caminho(.*)*` → `/`
 - **Prisma:** config `apps/api/prisma7.config.ts` · schema `apps/api/prisma/schema.prisma` · client em `apps/api/src/generated/prisma` (fora do git, compilado para `dist/generated`)
 - **Model `Usuario` (tabela `usuario`):** `id`, `nome`, `nomeUsuario @unique @map("nome_usuario")`, `senhaHash @map("senha_hash")`, `perfil Perfil`, `crmv String?`, `ativo Boolean @default(true)` · enum `Perfil` (`ADMIN`, `ATENDENTE`, `VETERINARIO`) com `@@map("perfil")`
-- **Model `Tutor` (tabela `tutor`):** `id`, `nome`, `cpf String @unique @db.Char(11)`, `telefone`, `email String?`, `ativo Boolean @default(true)`
-- **Migrations:** `20261125195835_setup_cria_tutor_animal` · `20261126192159_cria_usuario` · `20261127020652_tutor_campos`; todas aplicadas no local e no Neon
+- **Model `Tutor` (tabela `tutor`):** `id`, `nome`, `cpf String @unique @db.Char(11)`, `telefone`, `email String?`, `ativo Boolean @default(true)`, `animais Animal[]`
+- **Model `Animal` (tabela `animal`):** `id`, `nome`, `especie Especie`, `raca String?`, `sexo Sexo`, `dataNascimento DateTime? @db.Date @map("data_nascimento")`, `tutorId Int @map("tutor_id")`, `tutor Tutor @relation(fields: [tutorId], references: [id])`, `ativo Boolean @default(true)`, `@@index([tutorId])` · enums `Especie` (`@@map("especie")`) e `Sexo` (`@@map("sexo")`) · FK `ON DELETE RESTRICT`
+- **Migrations:** `20261125195835_setup_cria_tutor_animal` · `20261126192159_cria_usuario` · `20261127020652_tutor_campos` · `20261127033241_animal_campos`; todas aplicadas no local e no Neon
 - **Comandos Prisma (de apps/api):** `npx prisma validate` · `npx prisma migrate dev --name <nome>` · `npx prisma generate` · `npx prisma migrate deploy`
 - **Ver o banco local:** `docker compose exec db psql -U vetunif -d vetunif -c "<sql>"`
-- **Commits:** ticket 01 de `d3dc6fe` a `d861fdb` · ticket 02 `485a806` e `508054a` · ticket 03 de `c5f489f` a `f086b38` (7 commits) · ticket 04 de `9a91e80` a `4da3495` (8 commits)
+- **Commits:** ticket 01 de `d3dc6fe` a `d861fdb` · ticket 02 `485a806` e `508054a` · ticket 03 de `c5f489f` a `f086b38` (7 commits) · ticket 04 de `9a91e80` a `4da3495` (8 commits) · ticket 05 `560c56a` (api e shared) e `d7ea5fb` (web)
 
 ## Decisões Tomadas
 - **Ordem de montagem**: monorepo → Postgres → api → shared → web → compose; cada camada é testada antes da próxima.
@@ -118,18 +124,32 @@ Registro da implementação e da metodologia de trabalho. Tickets em `.scratch/c
 - **Confirmação da inativação dentro da página** (painel `role="alertdialog"`), e não `confirm()`: segue o visual e funciona no celular.
 - **O nome na lista é um `RouterLink`** para o detalhe, e não um clique na linha: funcionam o Tab, o Enter e o "abrir em nova aba".
 - **`PODE_CRIAR_E_INATIVAR` em `perfis.ts`**: o router, o botão "Novo tutor" e o botão "Inativar" usam a mesma lista. O PUT fica aberto aos três perfis (a tabela da especificação).
+- **Enums `Especie` e `Sexo` sem acento** (`FEMEA`), como o `Perfil`: um identificador de enum não aceita `Fêmea`. O texto de exibição fica em `NOME_ESPECIE` e `NOME_SEXO`.
+- **`@db.Date` e a API responde só `AAAA-MM-DD`**: o nascimento não tem hora; um `timestamp` mudaria o dia por causa do fuso. A tela formata a string (`formatarData`) sem passar por `Date`.
+- **`hojeLocal()` no shared para "não pode ser futura"**: o web (UTC-3) é mais rígido que o servidor (UTC), então o servidor nunca recusa uma data que o web aceitou.
+- **`@@index([tutorId])`**: o Postgres não indexa FK sozinho; o detalhe do Tutor e o bloqueio da inativação consultam por `tutorId`.
+- **O Tutor vem embutido na resposta do Animal** (`include: comTutor`): a lista e o detalhe mostram o nome sem uma segunda chamada.
+- **Tutor inexistente ou inativo no POST/PUT de Animal → 409 com `campos.tutorId`**: é regra de negócio, e a mensagem aparece na seção do Tutor no formulário.
+- **Bloqueio da inativação do Tutor por `count` antes do `update`**: precisa distinguir o 409 do 404. A janela de concorrência (inativar o tutor enquanto alguém cadastra um animal para ele) foi aceita.
+- **`GET /api/tutores/:id/animais` sem paginação**: um tutor tem poucos animais.
+- **`SeletorTutor` fora do `<form>` do animal**: HTML não aceita form dentro de form; o seletor tem os forms próprios de busca e de cadastro rápido.
+- **"Cadastrar novo tutor" escondido para o VETERINARIO, "Trocar tutor" liberado**: ele edita o Animal (inclusive o tutor), mas não cria Tutor.
+- **CPF de tutor inativo continua dando 409 até o ticket 06** (escolha do usuário): a mensagem melhor depende da reativação.
 
 ## Pendências / Em Aberto
-- **Status dos tickets 03 e 04**: o usuário marca nos arquivos dos tickets.
-- **Ticket 05**: o detalhe do Tutor lista os Animais dele e tem o botão "Adicionar animal" com o Tutor preenchido; bloquear a inativação de Tutor com Animais ativos; reusar o `CampoTexto`, o `buscaSchema`, o `idSchema`, o `camposDoErro`, o `SEM_CONTEUDO` e o `PODE_CRIAR_E_INATIVAR`.
-- **Teste do VETERINARIO na tela** (botões "Novo tutor" e "Inativar" escondidos): o 403 da API foi testado com curl; a tela, não.
-- **Tutor `ian teste 123`** (id 33, inativo) ficou no banco local.
+- **Status dos tickets 03, 04 e 05**: o usuário marca nos arquivos dos tickets.
+- **Ticket 06**:
+  - no 409 de CPF de um tutor inativo, trocar a mensagem por algo como "Este CPF pertence a um tutor inativo" e oferecer a reativação;
+  - não reativar Animal com Tutor inativo; filtro "mostrar inativos" para o ADMIN em Tutores e Animais.
+- **Ticket 08**: não inativar Animal com Atendimento em aberto (o `DELETE /api/animais/:id` ainda não checa).
+- **Dados de teste no banco local**: usuários `atend.teste` (ATENDENTE) e `vet.teste` (VETERINARIO), tutores 33 (`ian teste 123`, inativo), 34 (inativo) e 35, animais 1 a 3.
 - **Opcional na api**: um POST sem corpo responde `campos: { "": "Invalid input..." }`; as mensagens do `pagina` inválido saem em inglês (padrão do Zod).
 - **`.env.example` da raiz**: ainda não tem `JWT_SECRET=` e `ADMIN_SENHA=` (o compose funciona pelos valores padrão).
 - **PDF**:
   - avisar que o Render Free hiberna (~50 s na primeira visita);
   - registrar a avaliação da vulnerabilidade do `effect`;
   - registrar que o token emitido antes de uma inativação vale por até 8 h (o JWT não guarda estado);
+  - registrar a janela de concorrência entre cadastrar um Animal e inativar o Tutor dele;
   - incluir as credenciais de demonstração (ticket 11).
 - **Ticket 07**: usar `exigirPerfil('ADMIN')` nas rotas de usuário e reusar `NOME_PERFIL`; validar o formato do nome de usuário, a senha ≥ 8 e o CRMV para VETERINARIO.
 - **Ticket 11**: o seed passa a criar um usuário de cada perfil (`admin`, `atendente`, `veterinario`), mais tutores, animais e histórico.
@@ -173,6 +193,11 @@ Registro da implementação e da metodologia de trabalho. Tickets em `.scratch/c
 - **Inserts recusados (409) gastam ids da sequência**: o tutor seguinte pode vir com o id 7 em vez do 4; é normal.
 - **O Vue reaproveita a instância ao trocar entre rotas do mesmo componente** (`/tutores/novo` ↔ `/tutores/:id/editar`): use `watch(id, carregar, { immediate: true })` com o reset no começo, e não só o `onMounted`.
 - **`route.query.x` pode ser string, `null` ou array**: reduza com `typeof valor === 'string'`.
+- **O `watch(id)` dispara ao sair da tela**: ao ir do formulário para `/animais/:id`, o `route.params.id` muda antes de a tela desmontar, e o `carregar` buscaria de novo. Comece o `carregar` com `if (route.name !== '...') return`.
+- **HTML não aceita `<form>` dentro de `<form>`**: o navegador descarta o form interno, e o Enter na busca enviaria o form de fora. Deixe as seções com form próprio fora do form principal.
+- **`@db.Date` lido pelo Prisma vira `Date` à meia-noite UTC**: `new Date('2020-05-01')` também é UTC, então ida e volta batem; formatar com `toLocaleDateString` no Brasil (UTC-3) mostraria 30/04. Use `toISOString().slice(0, 10)` na api e formate a string na tela.
+- **curl com `Content-Type: application/json` e sem corpo dá 400 no Fastify** (`requisição inválida`, no `DELETE`): não é bug da rota; a `api()` do web só manda o header quando há `body`.
+- **Migration que cria coluna `NOT NULL` sem valor padrão só roda com a tabela vazia**: confira a contagem no local e no Neon antes do push.
 
 ## Ultima Atualizacao
-2026-11-27 — Ticket 04 concluído e publicado: model `Tutor`, schemas do shared com o CPF validado, `campos` nos erros, 5 rotas `/api/tutores` (409/403/404), listagem com busca e página na URL, formulário com `CampoTexto`, detalhe com a inativação confirmada; armadilhas de `exactOptionalPropertyTypes`, arquivo não salvo, trecho cortado e reuso de instância no Vue.
+2026-11-27 — Ticket 05 concluído e publicado: model `Animal` com enums e relação com `Tutor`, schemas do Animal no shared, rotas `/api/animais` e `/api/tutores/:id/animais`, 409 ao inativar um Tutor com animais, telas de lista/formulário (com `SeletorTutor`)/detalhe e animais no detalhe do Tutor; armadilhas de `watch` na saída da rota, form aninhado, fuso do `@db.Date` e curl sem corpo.
