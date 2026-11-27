@@ -46,7 +46,7 @@ fastify.setErrorHandler((error, request, reply) => {
     request.log.error(error);
 
     if ( error instanceof ErroHttp ) {
-        return reply.code(error.statusCode).send({ mensagem: error.message })
+        return reply.code(error.statusCode).send({ mensagem: error.message, campos: error.campos })
     }
 
     if ( error instanceof Error && 'statusCode' in error && typeof error.statusCode === 'number' && error.statusCode < 500 ) {

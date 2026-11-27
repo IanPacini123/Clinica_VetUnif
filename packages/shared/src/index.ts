@@ -89,3 +89,16 @@ export const listaTutoresSchema = z.object({
     porPagina: z.number(),
 })
 export type ListaTutores = z.infer<typeof listaTutoresSchema>
+
+export const idSchema = z.object({
+    id: z.coerce.number().int().positive(),
+})
+
+export function camposDoErro(erro: z.ZodError): Record<string, string> {
+    const campos: Record<string, string> = {}
+    for (const issue of erro.issues) {
+        const campo = issue.path.join('.')
+        campos[campo] ??= issue.message
+    }
+    return campos
+}
