@@ -4,6 +4,8 @@ import { useRoute, useRouter } from 'vue-router'
 import { listaTutoresSchema, type ListaTutores } from '@clinica/shared'
 import { api, ErroApi } from '../api'
 import { formatarCpf, formatarTelefone } from '../formatos'
+import { podeAcessar } from '../sessao/session'
+import { PODE_CRIAR_E_INATIVAR } from '../perfis'
 
 const route = useRoute()
 const router = useRouter()
@@ -58,7 +60,16 @@ function irParaPagina(pagina: number) {
 
 <template>
     <section class="space-y-4">
-        <h1 class="text-2xl font-bold">Tutores</h1>
+        <div class="flex items-center justify-between gap-2">
+            <h1 class="text-2xl font-bold">Tutores</h1>
+            <RouterLink
+                v-if="podeAcessar(PODE_CRIAR_E_INATIVAR)"
+                :to="{ name: 'tutor-novo' }"
+                class="rounded bg-blue-700 px-4 py-2 font-semibold text-white"
+            >
+                Novo tutor
+            </RouterLink>
+        </div>
 
         <form class="flex gap-2" @submit.prevent="buscar">
             <input

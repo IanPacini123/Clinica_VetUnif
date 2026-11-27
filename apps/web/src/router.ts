@@ -2,6 +2,7 @@ import { createRouter, createWebHistory, type RouteRecordRaw } from "vue-router"
 import { usuarioSessaoSchema, type Perfil } from "@clinica/shared";
 import { token, usuario, podeAcessar } from "./sessao/session";
 import { api } from "./api";
+import { PODE_CRIAR_E_INATIVAR } from "./perfis";
 
 declare module 'vue-router' {
     interface RouteMeta {
@@ -18,11 +19,25 @@ export const telas: RouteRecordRaw[] = [
     { path: '/usuarios', name: 'usuarios', component: () => import('./views/UsuariosView.vue'), meta: { titulo: 'Usuários', perfis: ['ADMIN'] } },
 ]
 
+const outrasTelas: RouteRecordRaw[] = [
+    {
+        path: '/tutores/novo',
+        name: 'tutor-novo',
+        component: () => import('./views/TutorFormView.vue'),
+        meta: { perfis: PODE_CRIAR_E_INATIVAR },
+    },
+    {
+        path: '/tutores/:id/editar',
+        name: 'tutor-editar',
+        component: () => import('./views/TutorFormView.vue'),
+    },
+]
+
 export const router = createRouter({
     history: createWebHistory(),
     routes: [
         { path: '/login', name: 'login', component: () => import('./views/LoginView.vue'), meta: { publica: true } },
-        { path: '/', component: () => import('./components/AppLayout.vue'), children: telas },
+        { path: '/', component: () => import('./components/AppLayout.vue'), children: [...telas, ...outrasTelas] },
         { path: '/:caminho(.*)*', redirect: '/' },
     ],
 })

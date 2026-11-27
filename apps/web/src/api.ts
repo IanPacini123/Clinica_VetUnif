@@ -1,12 +1,14 @@
-import { erroSchema } from "@clinica/shared";
+import { erroSchema, type Erro } from "@clinica/shared";
 import { token, encerrarSessao } from "./sessao/session";
 import { router } from "./router";
 
 export class ErroApi extends Error {
     status: number
-    constructor( status: number, mensagem: string  ) {
+    campos: Record<string, string>
+    constructor( status: number, mensagem: string, campos: Record<string, string> = {} ) {
         super(mensagem)
         this.status = status
+        this.campos = campos
     }
 }
 
@@ -26,14 +28,15 @@ export async function api<T>(caminho: string, schema: Validador<T>, opcoes: Requ
     }
 
     const body = await response.json().catch(() => null)
-    
+
     if ( !response.ok ) {
         if ( response.status === 401 && caminho !== `/api/login` ) {
             encerrarSessao()
             router.replace({ name: `login` })
         }
-        const erro = erroSchema.safeParse(body)
-        throw new ErroApi(response.status, erro.success ? erro.data.mensagem : `Erro inesperado.`)
+        const resultado = erroSchema.safeParse(body)
+        const erro: Erro = resultado.success ? resultado.data : { mensagem: `Erro inesperado.` }
+        throw new ErroApi(response.status, erro.mensagem, erro.campos)
     }
 
     return schema.parse(body)

@@ -5,3 +5,5 @@ export const NOME_PERFIL: Record<Perfil, string> = {
     ATENDENTE: 'Atendente',
     VETERINARIO: 'Veterinário',
 }
+
+export const PODE_CRIAR_E_INATIVAR: Perfil[] = ['ADMIN', 'ATENDENTE']
