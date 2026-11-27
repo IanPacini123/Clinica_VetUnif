@@ -1,5 +1,5 @@
 import { ref } from "vue";
-import type { UsuarioSessao } from "@clinica/shared";
+import type { Perfil, UsuarioSessao } from "@clinica/shared";
 
 const CHAVE_TOKEN = `token`
 
@@ -18,3 +18,7 @@ export function encerrarSessao() {
     usuario.value = null
 }
 
+export function podeAcessar(perfis?: Perfil[]): boolean {
+    if( !perfis ) return true
+    return usuario.value !== null && perfis.includes(usuario.value.perfil)
+}

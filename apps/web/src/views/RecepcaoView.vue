@@ -3,8 +3,8 @@
 </script>
 
 <template>
-    <main class="p-8">
+    <section>
         <h1 class="text-2xl font-bold">Recepção</h1>
         <p class="text-gray-600">Olá, {{ usuario?.nome }} ({{ usuario?.perfil }}). Nenhum paciente na fila.</p>
-    </main>
+    </section>
 </template>
