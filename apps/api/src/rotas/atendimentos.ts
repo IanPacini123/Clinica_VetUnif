@@ -13,7 +13,7 @@ import {
 import { Prisma } from '../generated/prisma/client.js'
 import { prisma } from '../db.js'
 import { ErroHttp } from '../models/erros.js'
-import { exigirPerfil } from '../auth/guards.js'
+import { exigirPerfil, podeVerInativos } from '../auth/guards.js'
 import { comTutor, paraResposta as animalParaResposta } from './animais.js'
 
 const NAO_ENCONTRADO = 'Atendimento não encontrado.'
@@ -175,6 +175,23 @@ export async function rotasAtendimentos(app: FastifyInstance) {
         })
         if (!atendimento) throw new ErroHttp(404, NAO_ENCONTRADO)
         return paraResposta(atendimento)
+    })
+
+    // Histórico: todos os Atendimentos do Animal, do mais recente ao mais
+    // antigo, inclusive os cancelados. Animal inativo, só para o ADMIN.
+    app.get('/api/animais/:id/atendimentos', async (request): Promise<Atendimento[]> => {
+        const id = lerId(request.params)
+        const animal = await prisma.animal.findFirst({
+            where: podeVerInativos(request) ? { id } : { id, ativo: true },
+        })
+        if (!animal) throw new ErroHttp(404, 'Animal não encontrado.')
+
+        const atendimentos = await prisma.atendimento.findMany({
+            where: { animalId: id },
+            include: comAnimalEVeterinario,
+            orderBy: [{ dataChegada: 'desc' }, { id: 'desc' }],
+        })
+        return atendimentos.map(paraResposta)
     })
 
     // Registrar Chegada: cria o Atendimento AGUARDANDO.

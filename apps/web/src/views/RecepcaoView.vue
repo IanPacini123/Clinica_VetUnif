@@ -3,8 +3,8 @@ import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import {
     atendimentoSchema,
+    atendimentosSchema,
     camposDoErro,
-    filaSchema,
     prioridadeQueixaSchema,
     type Atendimento,
 } from '@clinica/shared'
@@ -52,7 +52,7 @@ async function carregar() {
 
     carregando.value = true
     try {
-        fila.value = await api('/api/fila', filaSchema)
+        fila.value = await api('/api/fila', atendimentosSchema)
         atualizadoEm.value = new Date()
         erro.value = null
         carregou.value = true

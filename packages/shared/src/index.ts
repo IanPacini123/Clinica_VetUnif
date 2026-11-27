@@ -286,7 +286,7 @@ export const atendimentoSchema = z.object({
 })
 export type Atendimento = z.infer<typeof atendimentoSchema>
 
-export const filaSchema = z.array(atendimentoSchema)
+export const atendimentosSchema = z.array(atendimentoSchema)
 
 const textoOpcional = z.preprocess(vazioViraNull, z.string().nullable().optional())
 
