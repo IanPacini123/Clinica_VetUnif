@@ -28,7 +28,12 @@ const tutorDaUrl = computed(() => {
     return typeof valor === 'string' && /^\d+$/.test(valor) ? Number(valor) : null
 })
 
+// "Cadastrar novo animal" na Chegada abre /animais/novo?chegada=1:
+// depois de salvar, volta para a Chegada com o animal selecionado.
+const vemDaChegada = computed(() => id.value === null && route.query.chegada === '1')
+
 const voltarPara = computed(() => {
+    if (vemDaChegada.value) return { name: 'chegada' }
     if (id.value !== null) return { name: 'animal-detalhe', params: { id: id.value } }
     if (tutorDaUrl.value !== null) {
         return { name: 'tutor-detalhe', params: { id: tutorDaUrl.value } }
@@ -102,7 +107,11 @@ async function salvar() {
             method: id.value === null ? 'POST' : 'PUT',
             body: JSON.stringify(dados.data),
         })
-        await router.push({ name: 'animal-detalhe', params: { id: salvo.id } })
+        if (vemDaChegada.value) {
+            await router.push({ name: 'chegada', query: { animal: salvo.id } })
+        } else {
+            await router.push({ name: 'animal-detalhe', params: { id: salvo.id } })
+        }
     } catch (e) {
         mostrarErro(e)
     } finally {

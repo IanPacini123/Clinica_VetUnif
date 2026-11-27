@@ -13,3 +13,7 @@ export const PODE_VER_INATIVOS: Perfil[] = ['ADMIN']
 
 // A api confere o mesmo no hook de rotasUsuarios.
 export const PODE_GERIR_USUARIOS: Perfil[] = ['ADMIN']
+
+// Registrar Chegada, editar Prioridade e Queixa e cancelar.
+// A api confere o mesmo em rotasAtendimentos.
+export const PODE_REGISTRAR_CHEGADA: Perfil[] = ['ADMIN', 'ATENDENTE']

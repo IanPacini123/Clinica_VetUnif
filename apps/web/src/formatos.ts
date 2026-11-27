@@ -28,3 +28,8 @@ export const NOME_SEXO: Record<Sexo, string> = {
 export function formatarData(data: string): string {
     return data.replace(/^(\d{4})-(\d{2})-(\d{2})$/, '$3/$2/$1')
 }
+
+// Data e hora vêm em ISO (UTC); aqui viram o horário local, "09:05".
+export function formatarHora(iso: string): string {
+    return new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+}

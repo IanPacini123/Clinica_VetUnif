@@ -2,7 +2,7 @@ import { createRouter, createWebHistory, type RouteRecordRaw } from "vue-router"
 import { usuarioSessaoSchema, type Perfil } from "@clinica/shared";
 import { token, usuario, podeAcessar } from "./sessao/session";
 import { api } from "./api";
-import { PODE_CRIAR_E_INATIVAR, PODE_GERIR_USUARIOS } from "./perfis";
+import { PODE_CRIAR_E_INATIVAR, PODE_GERIR_USUARIOS, PODE_REGISTRAR_CHEGADA } from "./perfis";
 
 declare module 'vue-router' {
     interface RouteMeta {
@@ -20,6 +20,12 @@ export const telas: RouteRecordRaw[] = [
 ]
 
 const outrasTelas: RouteRecordRaw[] = [
+    {
+        path: '/chegada',
+        name: 'chegada',
+        component: () => import('./views/ChegadaView.vue'),
+        meta: { perfis: PODE_REGISTRAR_CHEGADA },
+    },
     {
         path: '/tutores/novo',
         name: 'tutor-novo',
