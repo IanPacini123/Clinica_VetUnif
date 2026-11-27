@@ -1,3 +1,5 @@
+import type { Especie, Sexo } from "@clinica/shared";
+
 export function formatarCpf(cpf: string): string {
     return cpf.replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/, '$1.$2.$3-$4')
 }
@@ -7,4 +9,22 @@ export function formatarTelefone(telefone: string): string {
         return telefone.replace(/^(\d{2})(\d{5})(\d{4})$/, '($1) $2-$3')
     }
     return telefone.replace(/^(\d{2})(\d{4})(\d{4})$/, '($1) $2-$3')
+}
+
+export const NOME_ESPECIE: Record<Especie, string> = {
+    CACHORRO: 'Cachorro',
+    GATO: 'Gato',
+    AVE: 'Ave',
+    ROEDOR: 'Roedor',
+    OUTRO: 'Outro',
+}
+
+export const NOME_SEXO: Record<Sexo, string> = {
+    MACHO: 'Macho',
+    FEMEA: 'Fêmea',
+}
+
+// "2020-05-01" → "01/05/2020", sem passar por Date (evita erro de fuso).
+export function formatarData(data: string): string {
+    return data.replace(/^(\d{4})-(\d{2})-(\d{2})$/, '$3/$2/$1')
 }

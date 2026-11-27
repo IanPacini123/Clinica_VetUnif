@@ -36,6 +36,22 @@ const outrasTelas: RouteRecordRaw[] = [
         name: 'tutor-detalhe',
         component: () => import('./views/TutorDetalheView.vue'),
     },
+    {
+        path: '/animais/novo',
+        name: 'animal-novo',
+        component: () => import('./views/AnimalFormView.vue'),
+        meta: { perfis: PODE_CRIAR_E_INATIVAR },
+    },
+    {
+        path: '/animais/:id/editar',
+        name: 'animal-editar',
+        component: () => import('./views/AnimalFormView.vue'),
+    },
+    {
+        path: '/animais/:id',
+        name: 'animal-detalhe',
+        component: () => import('./views/AnimalDetalheView.vue'),
+    },
 ]
 
 export const router = createRouter({

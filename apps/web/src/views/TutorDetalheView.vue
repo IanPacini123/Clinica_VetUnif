@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { tutorSchema, type Tutor } from '@clinica/shared'
+import { animaisSchema, tutorSchema, type Animal, type Tutor } from '@clinica/shared'
 import { api, ErroApi, SEM_CONTEUDO } from '../api'
-import { formatarCpf, formatarTelefone } from '../formatos'
+import { formatarCpf, formatarTelefone, NOME_ESPECIE } from '../formatos'
 import { podeAcessar } from '../sessao/session'
 import { PODE_CRIAR_E_INATIVAR } from '../perfis'
 
@@ -15,6 +15,7 @@ const id = computed(() => {
 })
 
 const tutor = ref<Tutor | null>(null)
+const animais = ref<Animal[]>([])
 const erro = ref<string | null>(null)
 const carregando = ref(false)
 const confirmando = ref(false)
@@ -26,14 +27,22 @@ function mensagemDe(e: unknown): string {
 }
 
 async function carregar() {
+    if (route.name !== 'tutor-detalhe') return
+
     tutor.value = null
+    animais.value = []
     erro.value = null
     confirmando.value = false
     if (id.value === null) return
 
     carregando.value = true
     try {
-        tutor.value = await api(`/api/tutores/${id.value}`, tutorSchema)
+        const [dados, lista] = await Promise.all([
+            api(`/api/tutores/${id.value}`, tutorSchema),
+            api(`/api/tutores/${id.value}/animais`, animaisSchema),
+        ])
+        tutor.value = dados
+        animais.value = lista
     } catch (e) {
         erro.value = mensagemDe(e)
     } finally {
@@ -86,6 +95,35 @@ async function inativar() {
                     <dd class="break-all">{{ tutor.email ?? '—' }}</dd>
                 </div>
             </dl>
+
+            <div class="space-y-3 rounded-lg bg-white p-4 shadow md:p-6">
+                <div class="flex items-center justify-between gap-2">
+                    <h2 class="font-semibold">Animais</h2>
+                    <RouterLink
+                        v-if="podeAcessar(PODE_CRIAR_E_INATIVAR)"
+                        :to="{ name: 'animal-novo', query: { tutor: tutor.id } }"
+                        class="rounded bg-blue-700 px-3 py-1 text-sm font-semibold text-white"
+                    >
+                        Adicionar animal
+                    </RouterLink>
+                </div>
+                <p v-if="animais.length === 0" class="text-sm text-gray-600">
+                    Nenhum animal ativo.
+                </p>
+                <ul v-else class="divide-y">
+                    <li v-for="animal in animais" :key="animal.id" class="py-2">
+                        <RouterLink
+                            :to="{ name: 'animal-detalhe', params: { id: animal.id } }"
+                            class="font-medium text-blue-700 hover:underline"
+                        >
+                            {{ animal.nome }}
+                        </RouterLink>
+                        <span class="text-sm text-gray-600">
+                            · {{ NOME_ESPECIE[animal.especie] }}
+                        </span>
+                    </li>
+                </ul>
+            </div>
 
             <div
                 v-if="confirmando"
