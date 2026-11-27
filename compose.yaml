@@ -20,9 +20,11 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.dev
-    command: sh -c "npm run db:deploy -w @clinica/api && npm run dev -w @clinica/api"
+    command: sh -c "npm run db:deploy -w @clinica/api && npm run seed:dev -w @clinica/api && npm run dev -w @clinica/api"
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-vetunif}:${POSTGRES_PASSWORD:-vetunif}@db:5432/${POSTGRES_DB:-vetunif}
+      JWT_SECRET: ${JWT_SECRET:-segredo-local-so-para-dev}
+      ADMIN_SENHA: ${ADMIN_SENHA:-admin12345}
     ports:
       - "3000:3000"
     depends_on:

@@ -34,4 +34,4 @@ COPY --from=build /app/apps/api/prisma7.config.ts apps/api/
 COPY --from=build /app/apps/web/dist apps/web/dist
 
 EXPOSE 3000
-CMD ["sh", "-c", "npm run db:deploy -w @clinica/api && npm start -w @clinica/api"]
+CMD ["sh", "-c", "npm run db:deploy -w @clinica/api && npm run db:seed -w @clinica/api && npm start -w @clinica/api"]
