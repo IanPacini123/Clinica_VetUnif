@@ -1,7 +1,7 @@
-# Progresso da Implementação: Tickets 01 a 03
+# Progresso da Implementação: Tickets 01 a 04
 
 ## Resumo
-Registro da implementação e da metodologia de trabalho. Tickets em `.scratch/clinica-veterinaria/issues/`. **Ticket 01** (esqueleto local), **02** (esqueleto publicado em `https://clinica-vetunif.onrender.com/`, com deploy automático por push) e **03** (login e sessão) foram concluídos em 2026-11-26. O 03 foi verificado na URL publicada, mas o status no arquivo do ticket ainda está `ready-for-agent`, e o próprio usuário vai marcá-lo. Próximo: ticket 04 (CRUD de tutor). As regras de negócio ficam em `docs/especificacao.md`; o deploy, no ADR 0004.
+Registro da implementação e da metodologia de trabalho. Tickets em `.scratch/clinica-veterinaria/issues/`. **Ticket 01** (esqueleto local), **02** (esqueleto publicado em `https://clinica-vetunif.onrender.com/`, com deploy automático por push) e **03** (login e sessão) foram concluídos em 2026-11-26. O **04** (CRUD de Tutor) foi concluído em 2026-11-27. O 03 e o 04 foram verificados na URL publicada; o status nos arquivos dos tickets é marcado pelo usuário. Próximo: ticket 05 (CRUD de Animal), ainda sem início por decisão do usuário. As regras de negócio ficam em `docs/especificacao.md`; o deploy, no ADR 0004.
 
 ## Metodologia (modo professor, com ritmo ajustado)
 - **O usuário escreve todo o código da aplicação.** Claude guia, revisa e explica. Claude só executa limpeza, verificação (build, curl, inspecionar arquivos ou containers) e documentação quando o usuário pede ou quando é preciso para diagnosticar.
@@ -40,23 +40,29 @@ Registro da implementação e da metodologia de trabalho. Tickets em `.scratch/c
 - **apps/api/.env:** `DATABASE_URL=postgresql://vetunif:<senha>@localhost:5435/vetunif` · `JWT_SECRET=...` · `ADMIN_SENHA=...`
 - **DATABASE_URL no compose:** `postgresql://${POSTGRES_USER:-vetunif}:${POSTGRES_PASSWORD:-vetunif}@db:5432/${POSTGRES_DB:-vetunif}`
 - **Proxy do Vite:** `'/api': process.env.API_URL ?? 'http://localhost:3000'` · no compose, `API_URL: http://api:3000` e `--host 0.0.0.0`
-- **Ordem no `server.ts`:** `Fastify()` → `setErrorHandler` → `setNotFoundHandler` → `addHook('onRequest', autenticar)` → `register(fastifyJwt, { secret, sign: { expiresIn: '8h' } })` → `register(rotasAuth)` → `register(fastifyStatic)` (se `servirWeb`) → `start()`
+- **Ordem no `server.ts`:** `Fastify()` → `setErrorHandler` → `setNotFoundHandler` → `addHook('onRequest', autenticar)` → `register(fastifyJwt, { secret, sign: { expiresIn: '8h' } })` → `register(rotasAuth)` → `register(rotasTutores)` → `register(fastifyStatic)` (se `servirWeb`) → `start()`
 - **Rotas da api:** `GET /api/health` (pública) · `POST /api/login` (pública) · `GET /api/sessao` (devolve `{ id, nome, nomeUsuario, perfil }` do token)
+- **Rotas de Tutor (`apps/api/src/rotas/tutores.ts`, `rotasTutores`):** `GET /api/tutores?busca=&pagina=` → `{ itens, total, pagina, porPagina }` (só ativos) · `GET /api/tutores/:id` · `POST /api/tutores` (ADMIN/ATENDENTE) → 201 · `PUT /api/tutores/:id` (todos) · `DELETE /api/tutores/:id` (ADMIN/ATENDENTE) → 204, inativa
+- **Mensagens de Tutor:** 400 `Verifique os campos destacados.` + `campos` · 400 `Id inválido.` · 400 `Parâmetros de busca inválidos.` · 404 `Tutor não encontrado.` (inexistente ou inativo) · 409 `Já existe um tutor cadastrado com este CPF.` com `campos.cpf`
+- **Helpers de `tutores.ts`:** `lerId` · `lerTutor` → `DadosTutor = Omit<TutorEntrada, 'email'> & { email: string | null }` · `traduzirErroDoBanco` (`P2002` → 409, `P2025` → 404) · `podeCriarEInativar = { preHandler: exigirPerfil('ADMIN', 'ATENDENTE') }`
+- **CPF válido para teste:** `529.982.247-25`
 - **Login:** 400 `Informe usuário e senha.` · 401 `Usuário ou senha inválidos.` (usuário inexistente ou senha errada) · 403 `Usuário foi inativado. Procure o administrador.` · 200 `{ token, usuario }`
 - **Proteção (`apps/api/src/auth/guards.ts`):** `ROTAS_PUBLICAS = new Set(['/api/login', '/api/health'])`, comparada com `request.routeOptions.url`; fora de `/api/` passa direto · 401 `Sessão expirada ou inválida. Entre novamente.` · `exigirPerfil(...perfis)` no `preHandler` → 403 `Você não tem a permissão para esta ação.`
 - **Arquivos de auth da api:** `src/auth/senha.ts` (`gerarHash`, `conferirSenha`, bcrypt `CUSTO = 10`) · `src/auth/tipos.ts` (`declare module '@fastify/jwt'`, payload e user = `UsuarioSessao`) · `src/rotas/auth.ts` (`rotasAuth`) · `src/seed.ts` (`upsert` de `admin` com `update: {}`)
 - **Payload do JWT:** `id`, `nome`, `nomeUsuario`, `perfil`, `iat`, `exp` (`exp - iat = 28800`)
 - **Rota de saúde:** 200 `{"status":"healthy","dbConnection":"healthy"}` · com o db fora, 503 `{"mensagem":"Falha na conexão com o banco de dados."}`
-- **Erros da api:** `{ mensagem, campos? }` · `ErroHttp(statusCode, mensagem)` em `apps/api/src/models/erros.ts` · 404 `{"mensagem":"Rota não encontrada."}`
-- **Shared:** `saudeSchema`, `erroSchema`, `perfilSchema`, `loginSchema` (só não vazio), `usuarioSessaoSchema`, `respostaLoginSchema` + tipos `Saude`, `Erro`, `Perfil`, `Login`, `UsuarioSessao`, `RespostaLogin` · `exports` com `types: ./dist/index.d.ts`, `default: ./dist/index.js`
-- **Web:** `src/sessao/session.ts` (`token`, `usuario`, `salvarSessao`, `encerrarSessao`, `podeAcessar`; localStorage chave `token`) · `src/api.ts` (`api(caminho, schema, opcoes)`, `ErroApi`) · `src/router.ts` (`telas`, `router`, `RouteMeta { publica, titulo, perfis }`) · `src/perfis.ts` (`NOME_PERFIL`) · `src/components/AppLayout.vue` · `src/views/` (`LoginView`, `RecepcaoView`, `TutoresView`, `AnimaisView`, `UsuariosView`)
-- **Rotas do web:** `/login` (pública, fora do layout) · filhas do layout: `/` (`recepcao`), `/tutores`, `/animais`, `/usuarios` (`perfis: ['ADMIN']`) · `/:caminho(.*)*` → `/`
+- **Erros da api:** `{ mensagem, campos? }` · `ErroHttp(statusCode, mensagem, campos?)` em `apps/api/src/models/erros.ts` (campo `readonly campos?: Record<string, string> | undefined`) · o handler responde `{ mensagem, campos }` · 404 `{"mensagem":"Rota não encontrada."}`
+- **Shared:** `saudeSchema`, `erroSchema`, `perfilSchema`, `loginSchema` (só não vazio), `usuarioSessaoSchema`, `respostaLoginSchema`, `tutorEntradaSchema`, `tutorSchema`, `buscaSchema` (`busca?`, `pagina` com `z.coerce` e `default(1)`), `POR_PAGINA = 20`, `listaTutoresSchema`, `idSchema`, `camposDoErro(erro)` (primeira mensagem por campo) + tipos `Saude`, `Erro`, `Perfil`, `Login`, `UsuarioSessao`, `RespostaLogin`, `TutorEntrada`, `Tutor`, `Busca`, `ListaTutores` · `exports` com `types: ./dist/index.d.ts`, `default: ./dist/index.js`
+- **Regras do `tutorEntradaSchema`:** nome `trim` ≥ 3 · CPF `soDigitos` → `cpfValido` (dígitos verificadores; rejeita repetidos) · telefone `soDigitos`, 10 a 11 dígitos · e-mail via `preprocess` (`""` → `null`), `z.email().nullable().optional()`
+- **Web:** `src/sessao/session.ts` (`token`, `usuario`, `salvarSessao`, `encerrarSessao`, `podeAcessar`; localStorage chave `token`) · `src/api.ts` (`api(caminho, schema, opcoes)`, `ErroApi` com `status` e `campos`, `SEM_CONTEUDO` para o 204) · `src/router.ts` (`telas`, `outrasTelas`, `router`, `RouteMeta { publica, titulo, perfis }`) · `src/perfis.ts` (`NOME_PERFIL`, `PODE_CRIAR_E_INATIVAR`) · `src/formatos.ts` (`formatarCpf`, `formatarTelefone`) · `src/components/` (`AppLayout`, `CampoTexto`) · `src/views/` (`LoginView`, `RecepcaoView`, `TutoresView`, `TutorFormView`, `TutorDetalheView`, `AnimaisView`, `UsuariosView`)
+- **Rotas do web:** `/login` (pública, fora do layout) · filhas do layout: `/` (`recepcao`), `/tutores`, `/animais`, `/usuarios` (`perfis: ['ADMIN']`) · fora do menu (`outrasTelas`): `/tutores/novo` (`tutor-novo`, `perfis: PODE_CRIAR_E_INATIVAR`), `/tutores/:id/editar` (`tutor-editar`), `/tutores/:id` (`tutor-detalhe`) · `/:caminho(.*)*` → `/`
 - **Prisma:** config `apps/api/prisma7.config.ts` · schema `apps/api/prisma/schema.prisma` · client em `apps/api/src/generated/prisma` (fora do git, compilado para `dist/generated`)
 - **Model `Usuario` (tabela `usuario`):** `id`, `nome`, `nomeUsuario @unique @map("nome_usuario")`, `senhaHash @map("senha_hash")`, `perfil Perfil`, `crmv String?`, `ativo Boolean @default(true)` · enum `Perfil` (`ADMIN`, `ATENDENTE`, `VETERINARIO`) com `@@map("perfil")`
-- **Migrations:** `20261125195835_setup_cria_tutor_animal` · `20261126192159_cria_usuario`; ambas aplicadas no local e no Neon
+- **Model `Tutor` (tabela `tutor`):** `id`, `nome`, `cpf String @unique @db.Char(11)`, `telefone`, `email String?`, `ativo Boolean @default(true)`
+- **Migrations:** `20261125195835_setup_cria_tutor_animal` · `20261126192159_cria_usuario` · `20261127020652_tutor_campos`; todas aplicadas no local e no Neon
 - **Comandos Prisma (de apps/api):** `npx prisma validate` · `npx prisma migrate dev --name <nome>` · `npx prisma generate` · `npx prisma migrate deploy`
 - **Ver o banco local:** `docker compose exec db psql -U vetunif -d vetunif -c "<sql>"`
-- **Commits:** ticket 01 de `d3dc6fe` a `d861fdb` · ticket 02 `485a806` e `508054a` · ticket 03 de `c5f489f` a `f086b38` (7 commits)
+- **Commits:** ticket 01 de `d3dc6fe` a `d861fdb` · ticket 02 `485a806` e `508054a` · ticket 03 de `c5f489f` a `f086b38` (7 commits) · ticket 04 de `9a91e80` a `4da3495` (8 commits)
 
 ## Decisões Tomadas
 - **Ordem de montagem**: monorepo → Postgres → api → shared → web → compose; cada camada é testada antes da próxima.
@@ -99,9 +105,26 @@ Registro da implementação e da metodologia de trabalho. Tickets em `.scratch/c
 - **ES Modules** (`"type": "module"` + `nodenext`): imports relativos com `.js` na api; `await` no topo é permitido.
 - **Variáveis vêm do ambiente**: `--env-file-if-exists` no dev (no container não há `.env`); `environment` no compose; painel no Render.
 - **TypeScript 6 no web e 7 na api/shared**: o `vue-tsc` ainda depende do 6. **npm em vez de pnpm.**
+- **CPF e telefone guardados só com dígitos** (o schema faz `transform` antes de validar): `123.456.789-09` e `12345678909` viram o mesmo valor, e o `@unique` pega a repetição. A máscara é só exibição (`formatos.ts`).
+- **409 pelo `@unique` (`P2002`), sem consulta antes**: consultar e depois inserir deixa uma janela de concorrência. O CPF de um tutor inativo também dá 409; o caminho é reativar (ticket 06).
+- **E-mail vazio vira `null`** (`preprocess` no schema, `?? null` no `lerTutor`): no `update` do Prisma, `undefined` quer dizer "não mexa", e `null` apaga.
+- **Busca**: nome com `contains` + `mode: 'insensitive'` (`ILIKE`); o CPF só entra no `OR` se a busca tiver dígitos. Sem `unaccent` (escolha do usuário: complexidade desnecessária).
+- **`$transaction([findMany, count])`** e `orderBy: [{ nome }, { id }]`: o total bate com os itens, e o `id` desempata nomes iguais entre as páginas.
+- **Tutor inativo responde 404** no detalhe, no PUT e no DELETE (`findFirst`/`update` com `ativo: true`). A visão de inativos para o ADMIN fica para o ticket 06.
+- **`DELETE` = inativar** (ADR 0001); a reativação entra como `POST /api/tutores/:id/reativar` (ticket 06).
+- **`camposDoErro` e `idSchema` no shared**: a api não tem o `zod` nas dependências (evita dependência fantasma), e o web reusa a mesma função.
+- **Busca e página na URL** (`/tutores?busca=&pagina=`), com `watch(route.query, { immediate: true })`: o F5, o Voltar e um link copiado mantêm o resultado. Uma busca nova volta para a página 1.
+- **Formulário único para criar e editar**, com o mesmo `tutorEntradaSchema` da rota, `novalidate` e os `campos` da API no campo certo; envia `dados.data` normalizado. Depois de salvar, vai para o detalhe.
+- **Confirmação da inativação dentro da página** (painel `role="alertdialog"`), e não `confirm()`: segue o visual e funciona no celular.
+- **O nome na lista é um `RouterLink`** para o detalhe, e não um clique na linha: funcionam o Tab, o Enter e o "abrir em nova aba".
+- **`PODE_CRIAR_E_INATIVAR` em `perfis.ts`**: o router, o botão "Novo tutor" e o botão "Inativar" usam a mesma lista. O PUT fica aberto aos três perfis (a tabela da especificação).
 
 ## Pendências / Em Aberto
-- **Status do ticket 03**: o usuário vai marcá-lo no arquivo do ticket (hoje está `ready-for-agent`).
+- **Status dos tickets 03 e 04**: o usuário marca nos arquivos dos tickets.
+- **Ticket 05**: o detalhe do Tutor lista os Animais dele e tem o botão "Adicionar animal" com o Tutor preenchido; bloquear a inativação de Tutor com Animais ativos; reusar o `CampoTexto`, o `buscaSchema`, o `idSchema`, o `camposDoErro`, o `SEM_CONTEUDO` e o `PODE_CRIAR_E_INATIVAR`.
+- **Teste do VETERINARIO na tela** (botões "Novo tutor" e "Inativar" escondidos): o 403 da API foi testado com curl; a tela, não.
+- **Tutor `ian teste 123`** (id 33, inativo) ficou no banco local.
+- **Opcional na api**: um POST sem corpo responde `campos: { "": "Invalid input..." }`; as mensagens do `pagina` inválido saem em inglês (padrão do Zod).
 - **`.env.example` da raiz**: ainda não tem `JWT_SECRET=` e `ADMIN_SENHA=` (o compose funciona pelos valores padrão).
 - **PDF**:
   - avisar que o Render Free hiberna (~50 s na primeira visita);
@@ -139,13 +162,17 @@ Registro da implementação e da metodologia de trabalho. Tickets em `.scratch/c
 - **`fetch` sem `/` inicial é relativo à página**: `'api/sessao'` funciona em `/` e vira `/tutores/api/sessao` em `/tutores` (o fallback devolve HTML com 200).
 - **O perfil fica dentro do token**: depois de mudar o perfil no banco, saia e entre de novo para testar.
 - **`erasableSyntaxOnly` no web**: sem *parameter properties* (`constructor(public status...)`); declare o campo.
-- **Erro de compilação descoberto no `docker build` custa ~30 s**; o build local custa ~2 s.
-- **O nome do Dockerfile de produção é `Dockerfile`**; outros nomes exigem `-f`/`dockerfile:`.
-- **Região do Neon não muda depois de criado**; projeto excluído invalida a URL e a senha.
-- **Não criar `PORT` no Render**; **a URL do Neon e a `ADMIN_SENHA` de produção ficam só no painel do Render**, nunca no chat, no commit ou em `.env` versionado.
-- **No `create-vite`, o `@types/node` vem na versão mais nova**: alinhe com `@24`.
+- **Docker e plataformas**: erro de compilação no `docker build` custa ~30 s (o build local, ~2 s); o Dockerfile de produção se chama `Dockerfile` (outro nome exige `-f`); a região do Neon não muda depois de criado; não criar `PORT` no Render; a URL do Neon e a `ADMIN_SENHA` de produção ficam só no painel do Render.
+- **No `create-vite`, o `@types/node` vem na versão mais nova**: alinhe com `@24`. **`rm -rf` de caminho errado não dá erro.**
 - **O error handler do Fastify recebe `unknown`**: estreite antes de ler `statusCode`.
-- **`rm -rf` de caminho errado não dá erro.**
+- **`exactOptionalPropertyTypes` na api** (o web não usa): `x?: T` quer dizer "a chave pode faltar", não "pode valer `undefined`". Atribuir um `T | undefined` num campo de classe dá `TS2412` (use `x: T | undefined`); um `email?: ... | undefined` no `data` do Prisma dá `TS2375`.
+- **A anotação de retorno vence a inferência**: `lerTutor(): TutorEntrada` "esqueceu" o `?? null` do corpo. Quando a função normaliza, o tipo de saída mostra a normalização (`DadosTutor`).
+- **Arquivo não salvo no editor**: o `tsc` compila o que está em disco, e o build passa com o código antigo. Confira o `git status`.
+- **Trecho colado com linhas cortadas ou com placeholder** (`// ... igual ao passo 4`): dezenas de `',' expected` seguidos vêm de um erro só; olhe o fim das linhas coladas a partir do primeiro erro.
+- **`contains: ""` casa com tudo**: a busca `"ana"` vira `""` no `soDigitos` e devolveria a tabela inteira.
+- **Inserts recusados (409) gastam ids da sequência**: o tutor seguinte pode vir com o id 7 em vez do 4; é normal.
+- **O Vue reaproveita a instância ao trocar entre rotas do mesmo componente** (`/tutores/novo` ↔ `/tutores/:id/editar`): use `watch(id, carregar, { immediate: true })` com o reset no começo, e não só o `onMounted`.
+- **`route.query.x` pode ser string, `null` ou array**: reduza com `typeof valor === 'string'`.
 
 ## Ultima Atualizacao
-2026-11-26 — Ticket 03 concluído e publicado: entidade `Usuario`, seed do admin no `CMD`, login JWT de 8h, hook global 401 + `exigirPerfil` 403, sessão/guardas/`api()` no web, layout com menu por perfil; armadilhas de import de tipo, build do shared, ordem no Fastify, porta ocupada e `fetch` relativo.
+2026-11-27 — Ticket 04 concluído e publicado: model `Tutor`, schemas do shared com o CPF validado, `campos` nos erros, 5 rotas `/api/tutores` (409/403/404), listagem com busca e página na URL, formulário com `CampoTexto`, detalhe com a inativação confirmada; armadilhas de `exactOptionalPropertyTypes`, arquivo não salvo, trecho cortado e reuso de instância no Vue.
