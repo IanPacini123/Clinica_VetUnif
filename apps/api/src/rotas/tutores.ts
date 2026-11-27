@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify'
 import {
     buscaSchema,
     camposDoErro,
+    CPF_DE_TUTOR_INATIVO,
     idSchema,
     tutorEntradaSchema,
     POR_PAGINA,
@@ -12,7 +13,7 @@ import {
 import { Prisma } from '../generated/prisma/client.js'
 import { prisma } from '../db.js'
 import { ErroHttp } from '../models/erros.js'
-import { exigirPerfil } from '../auth/guards.js'
+import { exigirPerfil, podeVerInativos, SEM_PERMISSAO } from '../auth/guards.js'
 
 const CPF_REPETIDO = 'Já existe um tutor cadastrado com este CPF.'
 const NAO_ENCONTRADO = 'Tutor não encontrado.'
@@ -33,14 +34,20 @@ function lerTutor(body: unknown): DadosTutor {
     return { ...r.data, email: r.data.email ?? null }
 }
 
+function cpfRepetido(erro: unknown): boolean {
+    return erro instanceof Prisma.PrismaClientKnownRequestError && erro.code === 'P2002'
+}
+
+// Depois do P2002, descobre se o dono do CPF está inativo para dar o caminho certo.
+async function conflitoDeCpf(cpf: string): Promise<ErroHttp> {
+    const dono = await prisma.tutor.findUnique({ where: { cpf } })
+    const mensagem = dono && !dono.ativo ? CPF_DE_TUTOR_INATIVO : CPF_REPETIDO
+    return new ErroHttp(409, mensagem, { cpf: mensagem })
+}
+
 function traduzirErroDoBanco(erro: unknown): never {
-    if (erro instanceof Prisma.PrismaClientKnownRequestError) {
-        if (erro.code === 'P2002') {
-            throw new ErroHttp(409, CPF_REPETIDO, { cpf: CPF_REPETIDO })
-        }
-        if (erro.code === 'P2025') {
-            throw new ErroHttp(404, NAO_ENCONTRADO)
-        }
+    if (erro instanceof Prisma.PrismaClientKnownRequestError && erro.code === 'P2025') {
+        throw new ErroHttp(404, NAO_ENCONTRADO)
     }
     throw erro
 }
@@ -53,9 +60,10 @@ export async function rotasTutores(app: FastifyInstance) {
         if (!consulta.success) {
             throw new ErroHttp(400, 'Parâmetros de busca inválidos.', camposDoErro(consulta.error))
         }
-        const { busca, pagina } = consulta.data
+        const { busca, pagina, inativos } = consulta.data
+        if (inativos && !podeVerInativos(request)) throw new ErroHttp(403, SEM_PERMISSAO)
 
-        const where: Prisma.TutorWhereInput = { ativo: true }
+        const where: Prisma.TutorWhereInput = inativos ? {} : { ativo: true }
         if (busca) {
             const digitos = busca.replace(/\D/g, '')
             where.OR = [
@@ -78,7 +86,8 @@ export async function rotasTutores(app: FastifyInstance) {
 
     app.get('/api/tutores/:id', async (request): Promise<Tutor> => {
         const id = lerId(request.params)
-        const tutor = await prisma.tutor.findFirst({ where: { id, ativo: true } })
+        const where = podeVerInativos(request) ? { id } : { id, ativo: true }
+        const tutor = await prisma.tutor.findFirst({ where })
         if (!tutor) throw new ErroHttp(404, NAO_ENCONTRADO)
         return tutor
     })
@@ -90,6 +99,7 @@ export async function rotasTutores(app: FastifyInstance) {
             reply.code(201)
             return tutor
         } catch (erro) {
+            if (cpfRepetido(erro)) throw await conflitoDeCpf(dados.cpf)
             traduzirErroDoBanco(erro)
         }
     })
@@ -103,6 +113,7 @@ export async function rotasTutores(app: FastifyInstance) {
                 data: dados,
             })
         } catch (erro) {
+            if (cpfRepetido(erro)) throw await conflitoDeCpf(dados.cpf)
             traduzirErroDoBanco(erro)
         }
     })
@@ -122,5 +133,16 @@ export async function rotasTutores(app: FastifyInstance) {
             traduzirErroDoBanco(erro)
         }
         return reply.code(204).send()
+    })
+
+    // Reativar um tutor já ativo não muda nada e responde 200.
+    const soAdmin = { preHandler: exigirPerfil('ADMIN') }
+    app.post('/api/tutores/:id/reativar', soAdmin, async (request): Promise<Tutor> => {
+        const id = lerId(request.params)
+        try {
+            return await prisma.tutor.update({ where: { id }, data: { ativo: true } })
+        } catch (erro) {
+            traduzirErroDoBanco(erro)
+        }
     })
 }

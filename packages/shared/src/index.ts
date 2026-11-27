@@ -74,9 +74,15 @@ export const tutorSchema = z.object({
 })
 export type Tutor = z.infer<typeof tutorSchema>
 
+// A api manda esta mensagem no 409; o web compara para oferecer o link.
+export const CPF_DE_TUTOR_INATIVO =
+    'Este CPF pertence a um tutor inativo. Um administrador pode reativá-lo.'
+
 export const buscaSchema = z.object({
     busca: z.string().trim().optional(),
     pagina: z.coerce.number().int().min(1).default(1),
+    // stringbool: "false" vira false (o z.coerce.boolean daria true).
+    inativos: z.stringbool().default(false),
 })
 export type Busca = z.infer<typeof buscaSchema>
 

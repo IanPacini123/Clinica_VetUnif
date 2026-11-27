@@ -12,10 +12,11 @@ import {
 import { Prisma } from '../generated/prisma/client.js'
 import { prisma } from '../db.js'
 import { ErroHttp } from '../models/erros.js'
-import { exigirPerfil } from '../auth/guards.js'
+import { exigirPerfil, podeVerInativos, SEM_PERMISSAO } from '../auth/guards.js'
 
 const NAO_ENCONTRADO = 'Animal não encontrado.'
 const TUTOR_INVALIDO = 'O tutor selecionado não existe ou está inativo.'
+const TUTOR_DO_ANIMAL_INATIVO = 'O tutor deste animal está inativo. Reative o tutor primeiro.'
 
 type DadosAnimal = Omit<AnimalEntrada, 'raca' | 'dataNascimento'> & {
     raca: string | null
@@ -80,9 +81,10 @@ export async function rotasAnimais(app: FastifyInstance) {
         if (!consulta.success) {
             throw new ErroHttp(400, 'Parâmetros de busca inválidos.', camposDoErro(consulta.error))
         }
-        const { busca, pagina } = consulta.data
+        const { busca, pagina, inativos } = consulta.data
+        if (inativos && !podeVerInativos(request)) throw new ErroHttp(403, SEM_PERMISSAO)
 
-        const where: Prisma.AnimalWhereInput = { ativo: true }
+        const where: Prisma.AnimalWhereInput = inativos ? {} : { ativo: true }
         if (busca) {
             where.OR = [
                 { nome: { contains: busca, mode: 'insensitive' } },
@@ -106,23 +108,27 @@ export async function rotasAnimais(app: FastifyInstance) {
     app.get('/api/animais/:id', async (request): Promise<Animal> => {
         const id = lerId(request.params)
         const animal = await prisma.animal.findFirst({
-            where: { id, ativo: true },
+            where: podeVerInativos(request) ? { id } : { id, ativo: true },
             include: comTutor,
         })
         if (!animal) throw new ErroHttp(404, NAO_ENCONTRADO)
         return paraResposta(animal)
     })
 
-    // Animais ativos de um tutor, para o detalhe do tutor (sem paginação).
+    // Animais de um tutor, para o detalhe do tutor (sem paginação).
+    // O ADMIN vê também os inativos, depois dos ativos.
     app.get('/api/tutores/:id/animais', async (request): Promise<Animal[]> => {
         const id = lerId(request.params)
-        const tutor = await prisma.tutor.findFirst({ where: { id, ativo: true } })
+        const admin = podeVerInativos(request)
+        const tutor = await prisma.tutor.findFirst({
+            where: admin ? { id } : { id, ativo: true },
+        })
         if (!tutor) throw new ErroHttp(404, 'Tutor não encontrado.')
 
         const animais = await prisma.animal.findMany({
-            where: { tutorId: id, ativo: true },
+            where: admin ? { tutorId: id } : { tutorId: id, ativo: true },
             include: comTutor,
-            orderBy: [{ nome: 'asc' }, { id: 'asc' }],
+            orderBy: [{ ativo: 'desc' }, { nome: 'asc' }, { id: 'asc' }],
         })
         return animais.map(paraResposta)
     })
@@ -163,5 +169,21 @@ export async function rotasAnimais(app: FastifyInstance) {
             traduzirErroDoBanco(erro)
         }
         return reply.code(204).send()
+    })
+
+    // Um animal ativo precisa de um tutor ativo (o mesmo vale no POST e no PUT).
+    const soAdmin = { preHandler: exigirPerfil('ADMIN') }
+    app.post('/api/animais/:id/reativar', soAdmin, async (request): Promise<Animal> => {
+        const id = lerId(request.params)
+        const atual = await prisma.animal.findUnique({ where: { id }, include: comTutor })
+        if (!atual) throw new ErroHttp(404, NAO_ENCONTRADO)
+        if (!atual.tutor.ativo) throw new ErroHttp(409, TUTOR_DO_ANIMAL_INATIVO)
+
+        const animal = await prisma.animal.update({
+            where: { id },
+            data: { ativo: true },
+            include: comTutor,
+        })
+        return paraResposta(animal)
     })
 }
