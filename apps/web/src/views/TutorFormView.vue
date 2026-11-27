@@ -1,9 +1,16 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { camposDoErro, tutorEntradaSchema, tutorSchema } from '@clinica/shared'
+import {
+    camposDoErro,
+    CPF_DE_TUTOR_INATIVO,
+    tutorEntradaSchema,
+    tutorSchema,
+} from '@clinica/shared'
 import { api, ErroApi } from '../api'
 import { formatarCpf, formatarTelefone } from '../formatos'
+import { podeAcessar } from '../sessao/session'
+import { PODE_VER_INATIVOS } from '../perfis'
 import CampoTexto from '../components/CampoTexto.vue'
 
 const route = useRoute()
@@ -23,6 +30,14 @@ const erros = ref<Record<string, string>>({})
 const erroGeral = ref<string | null>(null)
 const carregando = ref(false)
 const enviando = ref(false)
+
+// Para o ADMIN, o 409 de CPF de um tutor inativo leva à lista com os inativos.
+const buscaDoInativo = computed(() => {
+    if (erros.value.cpf !== CPF_DE_TUTOR_INATIVO) return null
+    if (!podeAcessar(PODE_VER_INATIVOS)) return null
+    const busca = form.cpf.replace(/\D/g, '')
+    return { name: 'tutores', query: { busca, inativos: 'true' } }
+})
 
 function mostrarErro(e: unknown) {
     console.error(e)
@@ -117,6 +132,13 @@ async function salvar() {
             />
 
             <p v-if="erroGeral" role="alert" class="text-sm text-red-700">{{ erroGeral }}</p>
+            <RouterLink
+                v-if="buscaDoInativo"
+                :to="buscaDoInativo"
+                class="block text-sm text-blue-700 hover:underline"
+            >
+                Ver o tutor inativo para reativá-lo
+            </RouterLink>
 
             <div class="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
                 <RouterLink

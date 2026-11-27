@@ -5,12 +5,14 @@ import { listaAnimaisSchema, type ListaAnimais } from '@clinica/shared'
 import { api, ErroApi } from '../api'
 import { NOME_ESPECIE, NOME_SEXO } from '../formatos'
 import { podeAcessar } from '../sessao/session'
-import { PODE_CRIAR_E_INATIVAR } from '../perfis'
+import { PODE_CRIAR_E_INATIVAR, PODE_VER_INATIVOS } from '../perfis'
+import SeloInativo from '../components/SeloInativo.vue'
 
 const route = useRoute()
 const router = useRouter()
 
 const textoBusca = ref('')
+const mostrarInativos = ref(false)
 const lista = ref<ListaAnimais | null>(null)
 const carregando = ref(false)
 const erro = ref<string | null>(null)
@@ -29,10 +31,14 @@ async function carregar() {
 
     const busca = textoDaQuery(route.query.busca)
     const pagina = Math.max(1, Number(textoDaQuery(route.query.pagina)) || 1)
+    // Fora do ADMIN, o ?inativos=true digitado na URL é ignorado (a api daria 403).
+    const inativos = podeAcessar(PODE_VER_INATIVOS) && route.query.inativos === 'true'
     textoBusca.value = busca
+    mostrarInativos.value = inativos
 
     const params = new URLSearchParams({ pagina: String(pagina) })
     if (busca) params.set('busca', busca)
+    if (inativos) params.set('inativos', 'true')
 
     carregando.value = true
     erro.value = null
@@ -48,9 +54,13 @@ async function carregar() {
 
 watch(() => route.query, carregar, { immediate: true })
 
+// Uma busca nova ou a troca do filtro volta para a página 1.
 function buscar() {
     const busca = textoBusca.value.trim()
-    router.push({ query: busca ? { busca } : {} })
+    const query: Record<string, string> = {}
+    if (busca) query.busca = busca
+    if (mostrarInativos.value) query.inativos = 'true'
+    router.push({ query })
 }
 
 function irParaPagina(pagina: number) {
@@ -83,6 +93,14 @@ function irParaPagina(pagina: number) {
             </button>
         </form>
 
+        <label
+            v-if="podeAcessar(PODE_VER_INATIVOS)"
+            class="flex w-fit items-center gap-2 text-sm"
+        >
+            <input v-model="mostrarInativos" type="checkbox" @change="buscar" />
+            Mostrar inativos
+        </label>
+
         <p v-if="erro" role="alert" class="text-sm text-red-700">{{ erro }}</p>
         <p v-else-if="carregando && !lista" class="text-gray-600">Carregando...</p>
 
@@ -102,7 +120,12 @@ function irParaPagina(pagina: number) {
                         </tr>
                     </thead>
                     <tbody>
-                        <tr v-for="animal in lista.itens" :key="animal.id" class="border-t">
+                        <tr
+                            v-for="animal in lista.itens"
+                            :key="animal.id"
+                            class="border-t"
+                            :class="{ 'bg-gray-100 text-gray-500': !animal.ativo }"
+                        >
                             <td class="px-4 py-2 font-medium">
                                 <RouterLink
                                     :to="{ name: 'animal-detalhe', params: { id: animal.id } }"
@@ -110,6 +133,7 @@ function irParaPagina(pagina: number) {
                                 >
                                     {{ animal.nome }}
                                 </RouterLink>
+                                <SeloInativo v-if="!animal.ativo" />
                             </td>
                             <td class="px-4 py-2">{{ NOME_ESPECIE[animal.especie] }}</td>
                             <td class="hidden px-4 py-2 md:table-cell">
@@ -122,6 +146,7 @@ function irParaPagina(pagina: number) {
                                 >
                                     {{ animal.tutor.nome }}
                                 </RouterLink>
+                                <SeloInativo v-if="!animal.tutor.ativo" />
                             </td>
                         </tr>
                     </tbody>

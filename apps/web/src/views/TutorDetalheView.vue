@@ -5,7 +5,8 @@ import { animaisSchema, tutorSchema, type Animal, type Tutor } from '@clinica/sh
 import { api, ErroApi, SEM_CONTEUDO } from '../api'
 import { formatarCpf, formatarTelefone, NOME_ESPECIE } from '../formatos'
 import { podeAcessar } from '../sessao/session'
-import { PODE_CRIAR_E_INATIVAR } from '../perfis'
+import { PODE_CRIAR_E_INATIVAR, PODE_VER_INATIVOS } from '../perfis'
+import SeloInativo from '../components/SeloInativo.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -20,6 +21,7 @@ const erro = ref<string | null>(null)
 const carregando = ref(false)
 const confirmando = ref(false)
 const inativando = ref(false)
+const reativando = ref(false)
 
 function mensagemDe(e: unknown): string {
     console.error(e)
@@ -67,6 +69,23 @@ async function inativar() {
         inativando.value = false
     }
 }
+
+// Reativar não apaga nada, então não pede confirmação.
+async function reativar() {
+    if (!tutor.value) return
+
+    reativando.value = true
+    erro.value = null
+    try {
+        tutor.value = await api(`/api/tutores/${tutor.value.id}/reativar`, tutorSchema, {
+            method: 'POST',
+        })
+    } catch (e) {
+        erro.value = mensagemDe(e)
+    } finally {
+        reativando.value = false
+    }
+}
 </script>
 
 <template>
@@ -79,7 +98,10 @@ async function inativar() {
         <p v-if="erro" role="alert" class="text-sm text-red-700">{{ erro }}</p>
 
         <template v-if="tutor">
-            <h1 class="text-2xl font-bold">{{ tutor.nome }}</h1>
+            <h1 class="text-2xl font-bold">
+                {{ tutor.nome }}
+                <SeloInativo v-if="!tutor.ativo" />
+            </h1>
 
             <dl class="grid gap-4 rounded-lg bg-white p-4 shadow sm:grid-cols-2 md:p-6">
                 <div>
@@ -100,7 +122,7 @@ async function inativar() {
                 <div class="flex items-center justify-between gap-2">
                     <h2 class="font-semibold">Animais</h2>
                     <RouterLink
-                        v-if="podeAcessar(PODE_CRIAR_E_INATIVAR)"
+                        v-if="tutor.ativo && podeAcessar(PODE_CRIAR_E_INATIVAR)"
                         :to="{ name: 'animal-novo', query: { tutor: tutor.id } }"
                         class="rounded bg-blue-700 px-3 py-1 text-sm font-semibold text-white"
                     >
@@ -111,7 +133,12 @@ async function inativar() {
                     Nenhum animal ativo.
                 </p>
                 <ul v-else class="divide-y">
-                    <li v-for="animal in animais" :key="animal.id" class="py-2">
+                    <li
+                        v-for="animal in animais"
+                        :key="animal.id"
+                        class="py-2"
+                        :class="{ 'text-gray-500': !animal.ativo }"
+                    >
                         <RouterLink
                             :to="{ name: 'animal-detalhe', params: { id: animal.id } }"
                             class="font-medium text-blue-700 hover:underline"
@@ -121,12 +148,30 @@ async function inativar() {
                         <span class="text-sm text-gray-600">
                             · {{ NOME_ESPECIE[animal.especie] }}
                         </span>
+                        <SeloInativo v-if="!animal.ativo" />
                     </li>
                 </ul>
             </div>
 
             <div
-                v-if="confirmando"
+                v-if="!tutor.ativo"
+                class="flex flex-col gap-3 rounded-lg border bg-gray-50 p-4 sm:flex-row sm:items-center sm:justify-between"
+            >
+                <p class="text-gray-700">
+                    Este tutor está inativo e não aparece nas listagens.
+                </p>
+                <button
+                    v-if="podeAcessar(PODE_VER_INATIVOS)"
+                    :disabled="reativando"
+                    class="rounded bg-green-700 px-4 py-2 font-semibold text-white disabled:opacity-60"
+                    @click="reativar"
+                >
+                    {{ reativando ? 'Reativando...' : 'Reativar' }}
+                </button>
+            </div>
+
+            <div
+                v-else-if="confirmando"
                 role="alertdialog"
                 aria-labelledby="confirmar-inativacao"
                 class="space-y-3 rounded-lg border border-red-300 bg-red-50 p-4"
